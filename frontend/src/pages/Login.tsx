@@ -63,10 +63,25 @@ export const Login: React.FC = () => {
             </div>
 
             {loginError && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="text-sm text-red-700">
-                  {(loginError as any)?.response?.data?.message || 'Ошибка входа'}
+              <div className={`rounded-md p-4 ${
+                (loginError as any)?.response?.status === 429
+                  ? 'bg-yellow-50 border border-yellow-200'
+                  : 'bg-red-50'
+              }`}>
+                <div className={`text-sm ${
+                  (loginError as any)?.response?.status === 429
+                    ? 'text-yellow-800'
+                    : 'text-red-700'
+                }`}>
+                  {(loginError as any)?.response?.data?.detail ||
+                   (loginError as any)?.response?.data?.message ||
+                   'Ошибка входа'}
                 </div>
+                {(loginError as any)?.response?.status === 429 && (
+                  <div className="text-xs text-yellow-600 mt-2">
+                    Попробуйте позже или обратитесь к администратору
+                  </div>
+                )}
               </div>
             )}
 
@@ -86,7 +101,7 @@ export const Login: React.FC = () => {
           </form>
 
           <div className="mt-6 text-center text-xs text-gray-500">
-            Максимум 5 попыток входа за 15 минут
+            Максимум 5 попыток входа за 15 минут с одного устройства
           </div>
         </div>
       </div>

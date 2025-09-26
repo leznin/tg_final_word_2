@@ -13,12 +13,6 @@ class Base(DeclarativeBase):
     pass
 
 
-# Import all models to register them with Base.metadata
-# This import must happen after Base is defined to avoid circular imports
-from app.models.users import User
-from app.models.chats import Chat
-
-
 # Create async engine with optimized connection pool for high concurrency
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -30,6 +24,14 @@ engine = create_async_engine(
     pool_pre_ping=True,  # Verify connections before using them
     pool_recycle=3600,  # Recycle connections after 1 hour
 )
+
+# Import all models to register them with Base.metadata
+# This import must happen after engine creation to avoid circular imports
+from app.models.users import User
+from app.models.chats import Chat
+from app.models.chat_members import ChatMember
+from app.models.messages import Message
+from app.models.auth_attempts import AuthAttempt
 
 # Create async session factory
 async_session = async_sessionmaker(

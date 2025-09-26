@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../utils/api';
+import { getFingerprint } from '../utils/fingerprint';
 import { AuthResponse, AuthCheckResponse } from '../types';
 
 export const useAuth = () => {
@@ -16,8 +17,13 @@ export const useAuth = () => {
 
   const loginMutation = useMutation({
     mutationFn: async (password: string): Promise<AuthResponse> => {
+      // Get fingerprint before login attempt
+      const fingerprint = await getFingerprint();
+
       const formData = new FormData();
       formData.append('password', password);
+      formData.append('fingerprint', fingerprint);
+
       const response = await api.post('/auth/login', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -25,6 +31,7 @@ export const useAuth = () => {
       });
       return response.data;
     },
+    retry: false,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth'] });
     },

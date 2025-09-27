@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from app.services.chats import ChatService
 from app.services.messages import MessageService
 from app.telegram.services.chat_linking import ChatLinkingService
+from app.telegram.services.moderator_management import ModeratorManagementService
 from app.telegram.states import ChatManagementStates
 from app.telegram.keyboards.chat_management import get_cancel_keyboard, get_back_to_chats_keyboard
 from app.telegram.utils.constants import ChannelLinkingMessages, MessageEditingMessages, ButtonTexts
@@ -29,6 +30,7 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
 
     chat_service = ChatService(db)
     message_service = MessageService(db)
+    moderator_service = ModeratorManagementService(db)
 
     # Get the chat from database
     chat = await chat_service.get_chat_by_telegram_id(message.chat.id)
@@ -48,10 +50,17 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
         print(f"Message {message.message_id} from chat {chat.id} not found in database")
         return
 
+    # Check if user is a moderator in this chat
+    is_moderator = await moderator_service.moderator_service.is_user_moderator(chat.id, message.from_user.id)
+
     # Check if editing is allowed and within timeout
     should_delete_and_notify = False
 
-    if chat.message_edit_timeout_minutes is None:
+    if is_moderator:
+        # Moderators can always edit messages in their chats
+        print(f"User {message.from_user.id} is a moderator in chat {chat.id}, allowing edit")
+        return
+    elif chat.message_edit_timeout_minutes is None:
         # Editing is completely disabled for this chat
         should_delete_and_notify = True
         print(f"Message editing is disabled for chat {chat.id}, will delete and notify")
@@ -280,6 +289,64 @@ async def handle_channel_forward_for_linking(
         await message.reply(
             f"❌ Ошибка связывания: {response_message}\n\n"
             "Попробуйте переслать другое сообщение из канала.",
+            reply_markup=get_cancel_keyboard()
+        )
+        return
+
+    # Clear FSM state
+    await state.clear()
+
+
+@message_router.message(ChatManagementStates.waiting_for_moderator_forward)
+async def handle_moderator_forward_for_adding(
+    message: types.Message,
+    state: FSMContext,
+    db: AsyncSession
+) -> None:
+    """
+    Handle forwarded messages from users when user is in moderator adding state
+    """
+    moderator_service = ModeratorManagementService(db)
+
+    # Extract user data from forwarded message
+    user_data = await moderator_service.extract_user_from_forwarded_message(message)
+
+    if not user_data:
+        # Message is not forwarded from a user
+        await message.reply(
+            "❌ Это не пересылаемое сообщение от пользователя.\n\n"
+            "Перешлите сообщение от пользователя, которого хотите назначить модератором.",
+            reply_markup=get_cancel_keyboard()
+        )
+        return
+
+    # Get chat ID from FSM state
+    state_data = await state.get_data()
+    chat_id = state_data.get('selected_chat_id')
+
+    if not chat_id:
+        from app.telegram.utils.constants import ErrorMessages
+        await message.reply(
+            ErrorMessages.SELECTED_CHAT_ERROR,
+            reply_markup=get_cancel_keyboard()
+        )
+        await state.clear()
+        return
+
+    # Try to add moderator
+    success, response_message = await moderator_service.add_moderator_from_forwarded_message(
+        chat_id, message.from_user.id, user_data
+    )
+
+    if success:
+        await message.reply(
+            response_message,
+            reply_markup=get_back_to_chats_keyboard()
+        )
+    else:
+        await message.reply(
+            f"❌ Ошибка: {response_message}\n\n"
+            "Попробуйте переслать другое сообщение от пользователя.",
             reply_markup=get_cancel_keyboard()
         )
         return

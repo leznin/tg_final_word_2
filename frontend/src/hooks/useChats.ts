@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../utils/api';
-import { Chat, ChatDetailResponse, LinkChannelRequest, LinkChannelResponse } from '../types';
+import { Chat, ChatDetailResponse, LinkChannelRequest, LinkChannelResponse, ChatModerator, AddModeratorRequest, ModeratorResponse } from '../types';
 
 export const useChats = () => {
   return useQuery({
@@ -74,5 +74,51 @@ export const useLinkedChannel = (chatId: number) => {
       return response.data;
     },
     enabled: !!chatId,
+  });
+};
+
+export const useChatModerators = (chatId: string) => {
+  return useQuery({
+    queryKey: ['chat-moderators', chatId],
+    queryFn: async (): Promise<ChatModerator[]> => {
+      const response = await api.get(`/moderators/chat/${chatId}`);
+      return response.data;
+    },
+    enabled: !!chatId,
+  });
+};
+
+export const useAddModerator = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ chatId, moderatorData }: { chatId: number; moderatorData: AddModeratorRequest }): Promise<ChatModerator> => {
+      const response = await api.post(`/moderators`, {
+        chat_id: chatId,
+        ...moderatorData
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['chat-moderators'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-detail'] });
+    },
+  });
+};
+
+export const useRemoveModerator = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (moderatorId: number): Promise<ModeratorResponse> => {
+      const response = await api.delete(`/moderators/${moderatorId}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['chat-moderators'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-detail'] });
+    },
   });
 };

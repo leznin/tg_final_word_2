@@ -8,6 +8,7 @@ from aiogram.filters import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.telegram.services.chat_linking import ChatLinkingService
+from app.telegram.services.moderator_management import ModeratorManagementService
 from app.telegram.states import ChatManagementStates
 from app.telegram.keyboards.chat_management import (
     get_chats_keyboard,
@@ -17,11 +18,14 @@ from app.telegram.keyboards.chat_management import (
     get_main_menu_keyboard,
     get_confirm_unlink_keyboard,
     get_edit_timeout_options_keyboard,
-    get_custom_timeout_keyboard
+    get_custom_timeout_keyboard,
+    get_moderator_actions_keyboard,
+    get_moderators_list_keyboard,
+    get_confirm_remove_moderator_keyboard
 )
 from app.telegram.utils.constants import (
     StartMessages, ChatManagementMessages, ChannelLinkingMessages,
-    HelpMessages, ErrorMessages, ButtonTexts, MessageEditingMessages
+    HelpMessages, ErrorMessages, ButtonTexts, MessageEditingMessages, ModeratorMessages
 )
 
 # Create router for chat management
@@ -638,3 +642,276 @@ async def handle_cancel_custom_timeout(
             reply_markup=get_back_to_chats_keyboard()
         )
         await state.clear()
+
+
+@chat_management_router.callback_query(F.data.startswith("manage_moderators:"))
+async def handle_manage_moderators(
+    callback: types.CallbackQuery,
+    db: AsyncSession,
+    state: FSMContext
+) -> None:
+    """
+    Handle manage moderators button - show moderator actions
+    """
+    try:
+        # Extract chat ID from callback data
+        chat_id = int(callback.data.split(":")[1])
+
+        moderator_service = ModeratorManagementService(db)
+
+        # Get moderators count for this chat
+        moderators, error_msg = await moderator_service.get_chat_moderators_for_display(
+            chat_id, int(callback.from_user.id)
+        )
+
+        if error_msg:
+            await callback.answer()
+            await callback.message.edit_text(
+                f"❌ Ошибка: {error_msg}",
+                reply_markup=get_back_to_chats_keyboard()
+            )
+            return
+
+        moderators_count = len(moderators)
+
+        # Show moderator actions keyboard
+        keyboard = get_moderator_actions_keyboard(chat_id, moderators_count)
+        await callback.answer()
+        await callback.message.edit_text(
+            ModeratorMessages.MODERATOR_MANAGEMENT,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+
+        # Update state data (keep existing state)
+        await state.update_data(selected_chat_id=chat_id)
+    except Exception as e:
+        await callback.answer()
+        await callback.message.edit_text(
+            f"❌ Произошла ошибка: {str(e)}",
+            reply_markup=get_back_to_chats_keyboard()
+        )
+
+
+@chat_management_router.callback_query(F.data.startswith("add_moderator:"))
+async def handle_add_moderator(
+    callback: types.CallbackQuery,
+    db: AsyncSession,
+    state: FSMContext
+) -> None:
+    """
+    Handle add moderator button - start forwarded message waiting
+    """
+    try:
+        # Extract chat ID from callback data
+        chat_id = int(callback.data.split(":")[1])
+
+        await callback.answer()
+        await callback.message.edit_text(
+            ModeratorMessages.ADD_MODERATOR_INSTRUCTIONS,
+            reply_markup=get_cancel_keyboard(),
+            parse_mode="HTML"
+        )
+
+        # Store selected chat ID and switch to waiting state
+        await state.update_data(selected_chat_id=chat_id)
+        await state.set_state(ChatManagementStates.waiting_for_moderator_forward)
+    except Exception as e:
+        await callback.answer()
+        await callback.message.edit_text(
+            f"❌ Произошла ошибка: {str(e)}",
+            reply_markup=get_back_to_chats_keyboard()
+        )
+
+
+@chat_management_router.callback_query(F.data.startswith("view_moderators:"))
+async def handle_view_moderators(
+    callback: types.CallbackQuery,
+    db: AsyncSession,
+    state: FSMContext
+) -> None:
+    """
+    Handle view moderators button - show list of moderators
+    """
+    try:
+        # Extract chat ID from callback data
+        chat_id = int(callback.data.split(":")[1])
+
+        moderator_service = ModeratorManagementService(db)
+
+        # Get moderators for this chat
+        moderators, error_msg = await moderator_service.get_chat_moderators_for_display(
+            chat_id, int(callback.from_user.id)
+        )
+
+        if error_msg:
+            await callback.answer()
+            await callback.message.edit_text(
+                f"❌ Ошибка: {error_msg}",
+                reply_markup=get_back_to_chats_keyboard()
+            )
+            return
+
+        if not moderators:
+            await callback.answer()
+            await callback.message.edit_text(
+                ModeratorMessages.NO_MODERATORS,
+                reply_markup=get_moderator_actions_keyboard(chat_id, 0)
+            )
+            return
+
+        # Format moderators list
+        moderators_list = ""
+        for i, moderator in enumerate(moderators, 1):
+            name = moderator_service._format_moderator_name(moderator)
+            moderators_list += f"{i}. {name}\n"
+
+        response_text = ModeratorMessages.MODERATORS_LIST_TEMPLATE.format(
+            count=len(moderators),
+            moderators_list=moderators_list.strip()
+        )
+
+        # Show moderators list keyboard for removal
+        keyboard = get_moderators_list_keyboard(chat_id, moderators)
+        await callback.answer()
+        await callback.message.edit_text(
+            response_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await callback.answer()
+        await callback.message.edit_text(
+            f"❌ Произошла ошибка: {str(e)}",
+            reply_markup=get_back_to_chats_keyboard()
+        )
+
+
+@chat_management_router.callback_query(F.data.startswith("remove_moderator:"))
+async def handle_remove_moderator(
+    callback: types.CallbackQuery,
+    db: AsyncSession,
+    state: FSMContext
+) -> None:
+    """
+    Handle remove moderator button - show moderators list
+    """
+    try:
+        # Extract chat ID from callback data
+        chat_id = int(callback.data.split(":")[1])
+
+        # Reuse view_moderators logic
+        await handle_view_moderators(callback, db, state)
+    except Exception as e:
+        await callback.answer()
+        await callback.message.edit_text(
+            f"❌ Произошла ошибка: {str(e)}",
+            reply_markup=get_back_to_chats_keyboard()
+        )
+
+
+@chat_management_router.callback_query(F.data.startswith("confirm_remove_moderator:"))
+async def handle_confirm_remove_moderator(
+    callback: types.CallbackQuery,
+    db: AsyncSession,
+    state: FSMContext
+) -> None:
+    """
+    Handle confirmation request for removing a moderator
+    """
+    try:
+        # Extract chat ID and moderator ID from callback data
+        parts = callback.data.split(":")
+        chat_id = int(parts[1])
+        moderator_id = int(parts[2])
+
+        moderator_service = ModeratorManagementService(db)
+
+        # Get moderator info
+        moderator = await moderator_service.moderator_service.get_moderator(moderator_id)
+        if not moderator:
+            await callback.answer()
+            await callback.message.edit_text(
+                "❌ Модератор не найден.",
+                reply_markup=get_back_to_chats_keyboard()
+            )
+            return
+
+        moderator_name = moderator_service._format_moderator_name(moderator)
+
+        # Show confirmation dialog
+        confirm_text = ModeratorMessages.CONFIRM_REMOVE_MODERATOR_TEMPLATE.format(
+            moderator_name=moderator_name
+        )
+
+        keyboard = get_confirm_remove_moderator_keyboard(chat_id, moderator_id, moderator_name)
+        await callback.answer()
+        await callback.message.edit_text(
+            confirm_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+
+        # Set state for confirmation
+        await state.set_state(ChatManagementStates.confirming_unlink)  # Reusing existing state
+        await state.update_data(selected_chat_id=chat_id, selected_moderator_id=moderator_id)
+    except Exception as e:
+        await callback.answer()
+        await callback.message.edit_text(
+            f"❌ Произошла ошибка: {str(e)}",
+            reply_markup=get_back_to_chats_keyboard()
+        )
+
+
+@chat_management_router.callback_query(F.data.startswith("remove_moderator_confirmed:"))
+async def handle_remove_moderator_confirmed(
+    callback: types.CallbackQuery,
+    db: AsyncSession,
+    state: FSMContext
+) -> None:
+    """
+    Handle confirmed moderator removal
+    """
+    try:
+        # Extract chat ID and moderator ID from callback data
+        parts = callback.data.split(":")
+        chat_id = int(parts[1])
+        moderator_id = int(parts[2])
+
+        moderator_service = ModeratorManagementService(db)
+
+        # Get moderator info before removal
+        moderator = await moderator_service.moderator_service.get_moderator(moderator_id)
+        if not moderator:
+            await callback.answer()
+            await callback.message.edit_text(
+                "❌ Модератор не найден.",
+                reply_markup=get_back_to_chats_keyboard()
+            )
+            return
+
+        # Remove moderator
+        success, message = await moderator_service.remove_moderator(
+            chat_id, moderator.moderator_user_id, int(callback.from_user.id)
+        )
+
+        await callback.answer()
+        if success:
+            await callback.message.edit_text(
+                message,
+                reply_markup=get_back_to_chats_keyboard()
+            )
+        else:
+            await callback.message.edit_text(
+                f"❌ Ошибка: {message}",
+                reply_markup=get_back_to_chats_keyboard()
+            )
+
+        # Clear state after operation
+        await state.clear()
+    except Exception as e:
+        await callback.answer()
+        await callback.message.edit_text(
+            f"❌ Произошла ошибка: {str(e)}",
+            reply_markup=get_back_to_chats_keyboard()
+        )

@@ -5,6 +5,7 @@ Keyboards for chat management functionality
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import List, Dict, Any
 from app.models.chats import Chat
+from app.models.chat_moderators import ChatModerator
 from app.telegram.utils.constants import ButtonTexts
 
 
@@ -86,6 +87,12 @@ def get_chat_actions_keyboard(chat: Chat, linked_channel: Chat = None) -> Inline
             callback_data=f"edit_timeout_settings:{chat.id}"
         )])
 
+        # Manage moderators button (only for group chats)
+        keyboard.append([InlineKeyboardButton(
+            text=ButtonTexts.MANAGE_MODERATORS,
+            callback_data=f"manage_moderators:{chat.id}"
+        )])
+
     # Back button
     keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data="back_to_menu")])
 
@@ -157,5 +164,95 @@ def get_custom_timeout_keyboard(chat_id: int) -> InlineKeyboardMarkup:
     """
     keyboard = [
         [InlineKeyboardButton(text=ButtonTexts.CANCEL_CUSTOM_TIMEOUT, callback_data=f"cancel_custom_timeout:{chat_id}")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_moderator_actions_keyboard(chat_id: int, moderators_count: int = 0) -> InlineKeyboardMarkup:
+    """
+    Keyboard for moderator management actions
+    """
+    keyboard = []
+
+    # Show current moderators count
+    keyboard.append([InlineKeyboardButton(
+        text=ButtonTexts.VIEW_MODERATORS.format(count=moderators_count),
+        callback_data=f"view_moderators:{chat_id}"
+    )])
+
+    # Add moderator button
+    keyboard.append([InlineKeyboardButton(
+        text=ButtonTexts.ADD_MODERATOR,
+        callback_data=f"add_moderator:{chat_id}"
+    )])
+
+    # Remove moderator button (only if there are moderators)
+    if moderators_count > 0:
+        keyboard.append([InlineKeyboardButton(
+            text=ButtonTexts.REMOVE_MODERATOR,
+            callback_data=f"remove_moderator:{chat_id}"
+        )])
+
+    # Back button
+    keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data=f"back_to_chat_actions:{chat_id}")])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_moderators_list_keyboard(chat_id: int, moderators: List) -> InlineKeyboardMarkup:
+    """
+    Keyboard showing list of moderators for removal
+    """
+    keyboard = []
+
+    for moderator in moderators:
+        # Handle both ChatModerator objects and dicts
+        if isinstance(moderator, ChatModerator):
+            # Format moderator name for ChatModerator object
+            first_name = moderator.first_name or ''
+            last_name = moderator.last_name or ''
+            username = moderator.username
+            moderator_user_id = moderator.moderator_user_id
+            moderator_id = moderator.id
+        else:
+            # Handle dict format (fallback)
+            first_name = moderator.get('first_name', '')
+            last_name = moderator.get('last_name', '')
+            username = moderator.get('username')
+            moderator_user_id = moderator.get('moderator_user_id')
+            moderator_id = moderator.get('id')
+
+        # Format display name
+        name_parts = [first_name, last_name]
+        display_name = ' '.join(filter(None, name_parts)).strip()
+
+        if username:
+            display_name += f" (@{username})"
+
+        if not display_name:
+            display_name = f"ID: {moderator_user_id}"
+
+        # Add button to remove this moderator
+        keyboard.append([InlineKeyboardButton(
+            text=f"❌ {display_name}",
+            callback_data=f"confirm_remove_moderator:{chat_id}:{moderator_id}"
+        )])
+
+    # Back button
+    keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data=f"manage_moderators:{chat_id}")])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_confirm_remove_moderator_keyboard(chat_id: int, moderator_id: int, moderator_name: str) -> InlineKeyboardMarkup:
+    """
+    Confirmation keyboard for removing a moderator
+    """
+    keyboard = [
+        [InlineKeyboardButton(
+            text=ButtonTexts.CONFIRM_REMOVE_MODERATOR.format(name=moderator_name),
+            callback_data=f"remove_moderator_confirmed:{chat_id}:{moderator_id}"
+        )],
+        [InlineKeyboardButton(text=ButtonTexts.CANCEL, callback_data=f"view_moderators:{chat_id}")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

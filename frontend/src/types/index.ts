@@ -73,6 +73,29 @@ export interface LinkChannelResponse {
   message: string;
 }
 
+export interface ChatModerator {
+  id: number;
+  chat_id: number;
+  moderator_user_id: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  added_by_user_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AddModeratorRequest {
+  moderator_user_id: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+}
+
+export interface ModeratorResponse {
+  message: string;
+}
+
 export interface ChatDetailResponse {
   chat: ChatDetail;
   moderators: Moderator[];

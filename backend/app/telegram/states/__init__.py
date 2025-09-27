@@ -22,3 +22,6 @@ class ChatManagementStates(StatesGroup):
 
     # User is waiting for custom timeout value input
     waiting_for_custom_timeout = State()
+
+    # User is waiting for forwarded message from user to add as moderator
+    waiting_for_moderator_forward = State()

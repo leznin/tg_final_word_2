@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare, Users, Radio, Settings, Calendar, Hash, User, Link, Unlink, Plus } from 'lucide-react';
-import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel } from '../hooks/useChats';
+import { ArrowLeft, MessageSquare, Users, Radio, Settings, Calendar, Hash, User, Link, Unlink, Plus, Trash2 } from 'lucide-react';
+import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 
 export const ChatDetail: React.FC = () => {
@@ -14,6 +14,10 @@ export const ChatDetail: React.FC = () => {
   const { data: availableChannels } = useAvailableChannels(data?.chat.admin_user_id || 0);
   const linkChannelMutation = useLinkChannel();
   const unlinkChannelMutation = useUnlinkChannel();
+
+  // Hooks for moderators
+  const { data: moderatorsData, isLoading: moderatorsLoading } = useChatModerators(chatId!);
+  const removeModeratorMutation = useRemoveModerator();
 
   if (isLoading) return <Loading />;
   if (!data) return <div>Чат не найден</div>;
@@ -34,6 +38,17 @@ export const ChatDetail: React.FC = () => {
       await unlinkChannelMutation.mutateAsync(chat.id);
     } catch (error) {
       console.error('Failed to unlink channel:', error);
+    }
+  };
+
+  const handleRemoveModerator = async (moderatorId: number) => {
+    if (window.confirm('Вы уверены, что хотите удалить этого модератора?')) {
+      try {
+        await removeModeratorMutation.mutateAsync(moderatorId);
+      } catch (error) {
+        console.error('Failed to remove moderator:', error);
+        alert('Не удалось удалить модератора');
+      }
     }
   };
 
@@ -105,9 +120,9 @@ export const ChatDetail: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
           <Users className="h-5 w-5 mr-2 text-purple-500" />
-          Модераторы ({moderators.length})
+          Модераторы ({moderatorsData?.length || moderators.length})
         </h2>
-        {moderators.length > 0 ? (
+        {(moderatorsData || moderators).length > 0 ? (
           <div className="overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -121,29 +136,32 @@ export const ChatDetail: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Дата добавления
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Действия
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {moderators.map((moderator) => (
+                {(moderatorsData || moderators).map((moderator) => (
                   <tr key={moderator.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
                         <User className="h-4 w-4 text-gray-400" />
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {moderator.moderator_name}
+                            {moderator.moderator_name || `${moderator.first_name || ''} ${moderator.last_name || ''}`.trim() || `Пользователь ${moderator.moderator_user_id}`}
                           </div>
                           <div className="text-sm text-gray-500 font-mono">
                             ID: {moderator.moderator_user_id}
                           </div>
-                          {moderator.moderator_username && (
+                          {(moderator.moderator_username || moderator.username) && (
                             <a
-                              href={`https://t.me/${moderator.moderator_username}`}
+                              href={`https://t.me/${moderator.moderator_username || moderator.username}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-sm text-blue-600 hover:underline"
                             >
-                              @{moderator.moderator_username}
+                              @{moderator.moderator_username || moderator.username}
                             </a>
                           )}
                         </div>
@@ -153,7 +171,17 @@ export const ChatDetail: React.FC = () => {
                       ID: {moderator.added_by_user_id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(moderator.added_date).toLocaleDateString('ru-RU')}
+                      {new Date(moderator.added_date || moderator.created_at).toLocaleDateString('ru-RU')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => handleRemoveModerator(moderator.id)}
+                        disabled={removeModeratorMutation.isPending}
+                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                        title="Удалить модератора"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -161,7 +189,13 @@ export const ChatDetail: React.FC = () => {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-gray-500">Модераторы не назначены</p>
+          <div className="text-center py-8">
+            <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 mb-4">Модераторы не назначены</p>
+            <p className="text-sm text-gray-400">
+              Назначьте модераторов через Telegram бота для управления правами редактирования сообщений в этом чате.
+            </p>
+          </div>
         )}
       </div>
 

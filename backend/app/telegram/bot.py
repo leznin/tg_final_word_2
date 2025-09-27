@@ -2,9 +2,11 @@
 Telegram Bot implementation using aiogram
 """
 
+import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramRetryAfter
 
 from app.core.config import settings
 from app.telegram.middlewares.database import DatabaseMiddleware
@@ -49,11 +51,27 @@ class TelegramBot:
         self.dispatcher.include_router(message_router)
         self.dispatcher.include_router(chat_management_router)
 
-        # Set webhook
-        await self.bot.set_webhook(
-            url=self.webhook_url,
-            drop_pending_updates=True
-        )
+        # Set webhook with retry logic
+        max_retries = 5
+        base_delay = 1.0
+
+        for attempt in range(max_retries):
+            try:
+                await self.bot.set_webhook(
+                    url=self.webhook_url,
+                    drop_pending_updates=True
+                )
+                break  # Success, exit retry loop
+            except TelegramRetryAfter as e:
+                if attempt == max_retries - 1:
+                    raise  # Re-raise on last attempt
+
+                delay = base_delay * (2 ** attempt)  # Exponential backoff
+                print(f"Webhook setup failed due to rate limit. Retrying in {delay:.1f} seconds... (attempt {attempt + 1}/{max_retries})")
+                await asyncio.sleep(delay)
+            except Exception as e:
+                print(f"Unexpected error setting webhook: {e}")
+                raise
 
         self.running = True
 

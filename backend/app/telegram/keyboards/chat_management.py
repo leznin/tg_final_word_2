@@ -186,13 +186,6 @@ def get_moderator_actions_keyboard(chat_id: int, moderators_count: int = 0) -> I
         callback_data=f"add_moderator:{chat_id}"
     )])
 
-    # Remove moderator button (only if there are moderators)
-    if moderators_count > 0:
-        keyboard.append([InlineKeyboardButton(
-            text=ButtonTexts.REMOVE_MODERATOR,
-            callback_data=f"remove_moderator:{chat_id}"
-        )])
-
     # Back button
     keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data=f"back_to_chat_actions:{chat_id}")])
 

@@ -787,27 +787,6 @@ async def handle_view_moderators(
         )
 
 
-@chat_management_router.callback_query(F.data.startswith("remove_moderator:"))
-async def handle_remove_moderator(
-    callback: types.CallbackQuery,
-    db: AsyncSession,
-    state: FSMContext
-) -> None:
-    """
-    Handle remove moderator button - show moderators list
-    """
-    try:
-        # Extract chat ID from callback data
-        chat_id = int(callback.data.split(":")[1])
-
-        # Reuse view_moderators logic
-        await handle_view_moderators(callback, db, state)
-    except Exception as e:
-        await callback.answer()
-        await callback.message.edit_text(
-            f"❌ Произошла ошибка: {str(e)}",
-            reply_markup=get_back_to_chats_keyboard()
-        )
 
 
 @chat_management_router.callback_query(F.data.startswith("confirm_remove_moderator:"))

@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, MessageSquare, Users, Settings } from 'lucide-react';
+import { Home, MessageSquare, Users, Settings, User } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Чаты', href: '/chats', icon: MessageSquare },
+  { name: 'Пользователи и чаты', href: '/users-chats', icon: User },
   { name: 'Модераторы', href: '/moderators', icon: Users },
 ];
 

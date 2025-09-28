@@ -3,8 +3,9 @@ User Pydantic schemas
 """
 
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
+from app.schemas.chats import ChatWithLinkedChannelResponse
 
 
 class TelegramUserData(BaseModel):
@@ -56,3 +57,8 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class UserWithChatsResponse(UserResponse):
+    """Schema for user response with their chats information"""
+    chats: List[ChatWithLinkedChannelResponse] = []

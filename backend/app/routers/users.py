@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from app.core.database import get_db
-from app.schemas.users import UserCreate, UserResponse
+from app.schemas.users import UserCreate, UserResponse, UserWithChatsResponse
 from app.services.users import UserService
 
 router = APIRouter()
@@ -21,6 +21,17 @@ async def create_user(
     """Create a new user"""
     user_service = UserService(db)
     return await user_service.create_user(user_data)
+
+
+@router.get("/with-chats", response_model=List[UserWithChatsResponse])
+async def get_users_with_chats(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all users with their chats information including linked channels and moderators"""
+    user_service = UserService(db)
+    return await user_service.get_users_with_chats(skip, limit)
 
 
 @router.get("/{user_id}", response_model=UserResponse)

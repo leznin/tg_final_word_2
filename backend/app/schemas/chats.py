@@ -48,6 +48,11 @@ class ChatResponse(ChatBase):
     added_at: datetime
     created_at: datetime
     updated_at: datetime
+    member_count: Optional[int] = None
+    description: Optional[str] = None
+    invite_link: Optional[str] = None
+    bot_permissions: Optional[dict] = None
+    last_info_update: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -13,17 +13,105 @@ from app.services.chat_members import ChatMemberService
 router = APIRouter()
 
 
-@router.get("/chat/{chat_id}", response_model=List[ChatMemberResponse])
+@router.get("/chat/{chat_id}")
 async def get_chat_members(
-    chat_id: int,
+    chat_id: str,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all members of a specific chat"""
+    """Get all members of a specific chat with their group memberships"""
+    from app.services.chats import ChatService
+    from app.models.chats import Chat
+    from app.models.chat_members import ChatMember
+    from sqlalchemy import select, func
+
     member_service = ChatMemberService(db)
-    members = await member_service.get_chat_members(chat_id, skip, limit)
-    return members
+    chat_service = ChatService(db)
+
+    # Determine chat by ID type
+    try:
+        chat_id_int = int(chat_id)
+        if chat_id.startswith("-") or chat_id_int < 0:
+            chat = await chat_service.get_chat_by_telegram_id(chat_id_int)
+            if chat:
+                actual_chat_id = chat.id
+            else:
+                raise HTTPException(status_code=404, detail="Chat not found")
+        else:
+            actual_chat_id = chat_id_int
+            chat = await chat_service.get_chat(actual_chat_id)
+    except ValueError:
+        if chat_id.startswith("-"):
+            try:
+                telegram_chat_id = int(chat_id)
+                chat = await chat_service.get_chat_by_telegram_id(telegram_chat_id)
+                if chat:
+                    actual_chat_id = chat.id
+                else:
+                    raise HTTPException(status_code=404, detail="Chat not found")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid chat ID format")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid chat ID format")
+
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Get chat members with pagination
+    members = await member_service.get_chat_members(actual_chat_id, skip, limit)
+
+    # Get group memberships for each member
+    members_data = []
+    for member in members:
+        # Find other groups this user is in
+        user_groups_result = await db.execute(
+            select(
+                Chat.title,
+                Chat.telegram_chat_id,
+                Chat.chat_type
+            )
+            .select_from(ChatMember)
+            .join(Chat, ChatMember.chat_id == Chat.id)
+            .where(ChatMember.telegram_user_id == member.telegram_user_id)
+            .where(Chat.is_active == True)
+            .where(Chat.chat_type.in_(['group', 'supergroup']))
+            .where(Chat.id != actual_chat_id)  # Exclude current chat
+            .limit(10)  # Limit to prevent too much data
+        )
+
+        user_groups = []
+        for row in user_groups_result:
+            user_groups.append({
+                'title': row.title or f'Chat {row.telegram_chat_id}',
+                'telegram_chat_id': row.telegram_chat_id,
+                'chat_type': row.chat_type
+            })
+
+        member_data = {
+            'id': member.id,
+            'chat_id': member.chat_id,
+            'telegram_user_id': member.telegram_user_id,
+            'is_bot': member.is_bot,
+            'first_name': member.first_name,
+            'last_name': member.last_name,
+            'username': member.username,
+            'language_code': member.language_code,
+            'is_premium': member.is_premium,
+            'added_to_attachment_menu': member.added_to_attachment_menu,
+            'can_join_groups': member.can_join_groups,
+            'can_read_all_group_messages': member.can_read_all_group_messages,
+            'supports_inline_queries': member.supports_inline_queries,
+            'can_connect_to_business': member.can_connect_to_business,
+            'has_main_web_app': member.has_main_web_app,
+            'joined_at': member.joined_at.isoformat() if member.joined_at else None,
+            'created_at': member.created_at.isoformat() if member.created_at else None,
+            'updated_at': member.updated_at.isoformat() if member.updated_at else None,
+            'user_groups': user_groups
+        }
+        members_data.append(member_data)
+
+    return members_data
 
 
 @router.get("/chat/{chat_id}/count")

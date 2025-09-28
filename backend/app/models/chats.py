@@ -2,7 +2,8 @@
 Chat database model
 """
 
-from sqlalchemy import Column, Integer, BigInteger, String, Boolean, DateTime, func, ForeignKey, SmallInteger
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, DateTime, func, ForeignKey, SmallInteger, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -27,6 +28,13 @@ class Chat(Base):
 
     # Message edit timeout in minutes (None = editing disabled)
     message_edit_timeout_minutes = Column(SmallInteger, nullable=True)
+
+    # Additional information from Telegram API
+    member_count = Column(Integer, nullable=True)
+    description = Column(Text, nullable=True)
+    invite_link = Column(String(255), nullable=True)
+    bot_permissions = Column(JSONB, nullable=True)  # Bot permissions as JSON
+    last_info_update = Column(DateTime(timezone=True), nullable=True)
 
     # Relationship with User who added the bot
     added_by_user = relationship("User", backref="added_chats")

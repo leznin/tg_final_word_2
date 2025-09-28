@@ -5,6 +5,7 @@ import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { Chats } from './pages/Chats';
+import { UsersChats } from './pages/UsersChats';
 import { Moderators } from './pages/Moderators';
 import { ChatDetail } from './pages/ChatDetail';
 import { Login } from './pages/Login';
@@ -40,6 +41,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="chats" element={<Chats />} />
             <Route path="chats/:chatId" element={<ChatDetail />} />
+            <Route path="users-chats" element={<UsersChats />} />
             <Route path="moderators" element={<Moderators />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

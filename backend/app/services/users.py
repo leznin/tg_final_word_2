@@ -7,7 +7,10 @@ from sqlalchemy import select
 from typing import List, Optional
 from datetime import datetime
 from app.models.users import User
-from app.schemas.users import UserCreate, UserUpdate, TelegramUserData
+from app.models.chats import Chat
+from app.models.chat_moderators import ChatModerator
+from app.schemas.users import UserCreate, UserUpdate, TelegramUserData, UserWithChatsResponse
+from app.schemas.chats import ChatWithLinkedChannelResponse, ChannelWithAdmin
 
 
 class UserService:
@@ -112,3 +115,83 @@ class UserService:
         await self.db.commit()
         await self.db.refresh(db_user)
         return True
+
+    async def get_users_with_chats(self, skip: int = 0, limit: int = 100) -> List[UserWithChatsResponse]:
+        """Get all users with their chats information including linked channels and moderators"""
+        # Get all users with pagination
+        users_result = await self.db.execute(
+            select(User).offset(skip).limit(limit)
+        )
+        users = users_result.scalars().all()
+
+        result = []
+        for user in users:
+            user_data = UserWithChatsResponse.model_validate(user)
+
+            # Get all chats added by this user
+            chats_result = await self.db.execute(
+                select(Chat)
+                .where(Chat.added_by_user_id == user.id)
+                .where(Chat.is_active == True)
+            )
+            chats = chats_result.scalars().all()
+
+            # Process each chat to add linked channel and moderator info
+            chats_data = []
+            for chat in chats:
+                chat_data = ChatWithLinkedChannelResponse.model_validate(chat)
+
+                # Get moderators for the chat
+                chat_moderators_result = await self.db.execute(
+                    select(ChatModerator).where(ChatModerator.chat_id == chat.id)
+                )
+                chat_moderators = chat_moderators_result.scalars().all()
+
+                # Prepare chat moderator info
+                chat_moderators_info = []
+                for mod in chat_moderators:
+                    mod_info = {
+                        'id': mod.id,
+                        'moderator_user_id': mod.moderator_user_id,
+                        'first_name': mod.first_name,
+                        'last_name': mod.last_name,
+                        'username': mod.username,
+                        'added_date': mod.created_at.isoformat() if mod.created_at else None
+                    }
+                    chat_moderators_info.append(mod_info)
+
+                chat_data.chat_moderators = chat_moderators_info
+
+                if chat.linked_channel_id:
+                    # Get linked channel information
+                    linked_channel = await self.db.execute(
+                        select(Chat).where(Chat.id == chat.linked_channel_id)
+                    )
+                    linked_channel = linked_channel.scalar_one_or_none()
+
+                    if linked_channel:
+                        # Get admin information for the channel
+                        admin_result = await self.db.execute(
+                            select(User).where(User.id == linked_channel.added_by_user_id)
+                        )
+                        admin = admin_result.scalar_one_or_none()
+
+                        # Create channel info with admin
+                        channel_info = ChannelWithAdmin(
+                            id=linked_channel.id,
+                            telegram_chat_id=linked_channel.telegram_chat_id,
+                            title=linked_channel.title,
+                            username=linked_channel.username,
+                            admin_user_id=linked_channel.added_by_user_id,
+                            admin_username=admin.username if admin else None,
+                            admin_name=f"{admin.first_name or ''} {admin.last_name or ''}".strip() if admin else None
+                        )
+
+                        chat_data.linked_channel_info = channel_info
+
+                chats_data.append(chat_data)
+
+            user_data.chats = chats_data
+            result.append(user_data)
+
+        return result

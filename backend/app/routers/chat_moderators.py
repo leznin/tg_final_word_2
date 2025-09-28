@@ -29,18 +29,54 @@ async def get_all_moderators(
     return {"moderators": moderators}
 
 
-@router.get("/chat/{chat_id}", response_model=List[ChatModeratorWithUserResponse])
+@router.get("/chat/{chat_id}")
 async def get_chat_moderators(
-    chat_id: int,
+    chat_id: str,
     db: AsyncSession = Depends(get_db)
 ):
     """Get all moderators for a specific chat"""
+    from app.services.chats import ChatService
+    from sqlalchemy import select, func
+    from app.models.users import User
+
     moderator_service = ChatModeratorService(db)
+    chat_service = ChatService(db)
 
-    # Check if user can manage moderators for this chat
-    # This will be validated in the service methods
+    # Determine chat by ID type
+    try:
+        chat_id_int = int(chat_id)
+        if chat_id.startswith("-") or chat_id_int < 0:
+            chat = await chat_service.get_chat_by_telegram_id(chat_id_int)
+            if chat:
+                actual_chat_id = chat.id
+            else:
+                raise HTTPException(status_code=404, detail="Chat not found")
+        else:
+            actual_chat_id = chat_id_int
+            chat = await chat_service.get_chat(actual_chat_id)
+    except ValueError:
+        if chat_id.startswith("-"):
+            try:
+                telegram_chat_id = int(chat_id)
+                chat = await chat_service.get_chat_by_telegram_id(telegram_chat_id)
+                if chat:
+                    actual_chat_id = chat.id
+                else:
+                    raise HTTPException(status_code=404, detail="Chat not found")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid chat ID format")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid chat ID format")
 
-    moderators = await moderator_service.get_chat_moderators(chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Get all moderators and filter by chat_id
+    all_moderators = await moderator_service.get_all_moderators_with_chat_info()
+
+    # Filter moderators for this specific chat
+    moderators = [mod for mod in all_moderators if mod['chat_id'] == actual_chat_id]
+
     return moderators
 
 

@@ -15,6 +15,11 @@ from app.schemas.messages import (
     MessageBase, MessageCreate, MessageUpdate,
     MessageResponse, TelegramMessageData
 )
+from app.schemas.openrouter import (
+    OpenRouterBase, OpenRouterCreate, OpenRouterUpdate,
+    OpenRouterResponse, OpenRouterModel, OpenRouterBalance,
+    OpenRouterModelsResponse, OpenRouterBalanceResponse
+)
 
 __all__ = [
     "UserCreate", "UserResponse", "UserUpdate",
@@ -23,5 +28,8 @@ __all__ = [
     "ChatMemberBase", "ChatMemberCreate", "ChatMemberUpdate",
     "ChatMemberResponse", "TelegramUserData",
     "MessageBase", "MessageCreate", "MessageUpdate",
-    "MessageResponse", "TelegramMessageData"
+    "MessageResponse", "TelegramMessageData",
+    "OpenRouterBase", "OpenRouterCreate", "OpenRouterUpdate",
+    "OpenRouterResponse", "OpenRouterModel", "OpenRouterBalance",
+    "OpenRouterModelsResponse", "OpenRouterBalanceResponse"
 ]

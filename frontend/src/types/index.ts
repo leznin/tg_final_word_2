@@ -260,3 +260,55 @@ export interface BulkChatInfoResponse {
 export interface UserWithChats extends User {
   chats: Chat[];
 }
+
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  description?: string;
+  pricing?: Record<string, any>;
+  context_length?: number;
+  supports_function_calling?: boolean;
+  supports_vision?: boolean;
+}
+
+export interface OpenRouterBalance {
+  credits: number;
+  total_credits: number;
+  total_usage: number;
+  currency: string;
+}
+
+export interface OpenRouterSettings {
+  id: number;
+  api_key: string;
+  selected_model?: string;
+  balance?: number;
+  prompt?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OpenRouterSettingsCreate {
+  api_key: string;
+  selected_model?: string;
+  prompt?: string;
+  is_active?: boolean;
+}
+
+export interface OpenRouterSettingsUpdate {
+  api_key?: string;
+  selected_model?: string;
+  balance?: number;
+  prompt?: string;
+  is_active?: boolean;
+}
+
+export interface OpenRouterModelsResponse {
+  models: OpenRouterModel[];
+}
+
+export interface OpenRouterBalanceResponse {
+  balance: OpenRouterBalance;
+  last_updated: string;
+}

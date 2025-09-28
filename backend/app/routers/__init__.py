@@ -12,6 +12,7 @@ from app.routers.dashboard import router as dashboard_router
 from app.routers.chat_moderators import router as chat_moderators_router
 from app.routers.admin_chats import router as admin_chats_router
 from app.routers.chat_info import router as chat_info_router
+from app.routers.openrouter import router as openrouter_router
 
 api_router = APIRouter()
 
@@ -25,3 +26,4 @@ api_router.include_router(chat_moderators_router, prefix="/moderators", tags=["m
 api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(admin_chats_router, prefix="/admin-chats", tags=["admin-chats"])
 api_router.include_router(chat_info_router, prefix="/chat-info", tags=["chat-info"])
+api_router.include_router(openrouter_router, prefix="/openrouter", tags=["openrouter"])

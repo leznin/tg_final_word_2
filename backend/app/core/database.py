@@ -33,6 +33,13 @@ from app.models.chat_members import ChatMember
 from app.models.messages import Message
 from app.models.auth_attempts import AuthAttempt
 
+# Import OpenRouterSettings after other models to avoid circular import
+try:
+    from app.models.openrouter import OpenRouterSettings
+except ImportError:
+    # Handle case where OpenRouterSettings is not available yet
+    OpenRouterSettings = None
+
 # Create async session factory
 async_session = async_sessionmaker(
     engine,

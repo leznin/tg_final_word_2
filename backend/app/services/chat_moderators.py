@@ -4,7 +4,7 @@ Chat moderators service with business logic
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, delete
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from app.models.chat_moderators import ChatModerator
 from app.models.chats import Chat
 from app.schemas.chat_moderators import ChatModeratorCreate, ChatModeratorUpdate
@@ -59,6 +59,40 @@ class ChatModeratorService:
             select(ChatModerator).where(ChatModerator.moderator_user_id == moderator_user_id)
         )
         return result.scalars().all()
+
+    async def get_all_moderators_with_chat_info(self) -> List[Dict[str, Any]]:
+        """Get all moderators with chat information for frontend"""
+        result = await self.db.execute(
+            select(
+                ChatModerator.id,
+                ChatModerator.chat_id,
+                Chat.title.label('chat_title'),
+                ChatModerator.moderator_user_id,
+                ChatModerator.username.label('moderator_username'),
+                func.concat(ChatModerator.first_name, ' ', func.coalesce(ChatModerator.last_name, '')).label('moderator_name'),
+                ChatModerator.added_by_user_id,
+                ChatModerator.created_at.label('added_date')
+            )
+            .select_from(ChatModerator)
+            .join(Chat, ChatModerator.chat_id == Chat.id)
+            .order_by(ChatModerator.created_at.desc())
+        )
+
+        moderators = []
+        for row in result:
+            moderator = {
+                'id': row.id,
+                'chat_id': row.chat_id,
+                'chat_title': row.chat_title or f'Chat {row.chat_id}',
+                'moderator_user_id': row.moderator_user_id,
+                'moderator_username': row.moderator_username,
+                'moderator_name': row.moderator_name.strip(),
+                'added_by_user_id': row.added_by_user_id,
+                'added_date': row.added_date.isoformat() if row.added_date else None
+            }
+            moderators.append(moderator)
+
+        return moderators
 
     async def update_moderator(self, moderator_id: int, moderator_data: ChatModeratorUpdate) -> Optional[ChatModerator]:
         """Update moderator information"""

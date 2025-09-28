@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Calendar, Settings, Hash, Radio } from 'lucide-react';
+import { MessageSquare, Calendar, Settings, Hash, Radio, User, Users } from 'lucide-react';
 import { useChats } from '../hooks/useChats';
 import { DataTable } from '../components/ui/DataTable';
 import { Loading } from '../components/ui/Loading';
@@ -16,7 +16,7 @@ export const Chats: React.FC = () => {
 
   const columns = [
     {
-      key: 'chat_id',
+      key: 'telegram_chat_id',
       label: 'ID чата',
       sortable: true,
       render: (value: number) => (
@@ -27,20 +27,20 @@ export const Chats: React.FC = () => {
       ),
     },
     {
-      key: 'chat_title',
+      key: 'title',
       label: 'Название',
       sortable: true,
       render: (value: string, chat: Chat) => (
         <div className="flex items-center space-x-2">
           <MessageSquare className="h-4 w-4 text-blue-500" />
-          <span 
+          <span
             className="font-medium text-blue-600 cursor-pointer hover:underline"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/chats/${chat.chat_id}`);
+              navigate(`/chats/${chat.telegram_chat_id}`);
             }}
           >
-            {value}
+            {value || 'Без названия'}
           </span>
         </div>
       ),
@@ -68,23 +68,92 @@ export const Chats: React.FC = () => {
       },
     },
     {
-      key: 'admin_user_id',
-      label: 'Админ ID',
-      sortable: true,
-      render: (value: number) => (
-        <span className="font-mono text-sm text-gray-600">{value}</span>
-      ),
+      key: 'linked_channel_info',
+      label: 'Привязанный канал',
+      sortable: false,
+      render: (value: any, chat: Chat) => {
+        if (!chat.linked_channel_info) {
+          return <span className="text-gray-400 text-sm">Не привязан</span>;
+        }
+
+        const channel = chat.linked_channel_info;
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <Radio className="h-4 w-4 text-purple-500" />
+              <span className="text-sm font-medium text-purple-600">
+                {channel.title || channel.username || `Канал ${channel.telegram_chat_id}`}
+              </span>
+            </div>
+            <div className="text-xs text-gray-500 pl-6">
+              ID: {channel.telegram_chat_id}
+            </div>
+          </div>
+        );
+      },
     },
     {
-      key: 'channel_count',
-      label: 'Каналы',
-      sortable: true,
-      render: (value: number) => (
-        <div className="flex items-center space-x-1">
-          <Radio className="h-4 w-4 text-green-500" />
-          <span className={value > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}>{value}</span>
-        </div>
-      ),
+      key: 'linked_channel_info',
+      label: 'Администратор канала',
+      sortable: false,
+      render: (value: any, chat: Chat) => {
+        if (!chat.linked_channel_info) {
+          return <span className="text-gray-400 text-sm">-</span>;
+        }
+
+        const channel = chat.linked_channel_info;
+        return (
+          <div className="flex items-center space-x-2">
+            <User className="h-4 w-4 text-blue-500" />
+            <div className="text-sm">
+              <div className="font-medium">{channel.admin_name || 'Неизвестен'}</div>
+              {channel.admin_username && (
+                <div className="text-gray-500">@{channel.admin_username}</div>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'chat_moderators',
+      label: 'Модераторы чата',
+      sortable: false,
+      render: (value: any, chat: Chat) => {
+        if (!chat.chat_moderators || !chat.chat_moderators.length) {
+          return (
+            <div className="flex items-center space-x-2">
+              <Users className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-400 text-sm">Нет модераторов</span>
+            </div>
+          );
+        }
+
+        const moderators = chat.chat_moderators;
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <Users className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium text-green-600">
+                {moderators.length} модератор{moderators.length > 1 ? 'ов' : ''}
+              </span>
+            </div>
+            <div className="max-w-xs">
+              {moderators.slice(0, 2).map((mod, index) => (
+                <div key={mod.id} className="text-xs text-gray-600 truncate">
+                  {mod.first_name || mod.username || `Модератор ${mod.moderator_user_id}`}
+                  {index < moderators.length - 1 && index < 1 && ', '}
+                </div>
+              ))}
+              {moderators.length > 2 && (
+                <div className="text-xs text-gray-500">
+                  и ещё {moderators.length - 2}...
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'delete_messages_enabled',
@@ -99,15 +168,15 @@ export const Chats: React.FC = () => {
       ),
     },
     {
-      key: 'max_edit_time_minutes',
+      key: 'message_edit_timeout_minutes',
       label: 'Время редактирования',
       sortable: true,
       render: (value: number) => (
-        <span className="text-sm">{value} мин</span>
+        <span className="text-sm">{value || 0} мин</span>
       ),
     },
     {
-      key: 'added_date',
+      key: 'added_at',
       label: 'Дата добавления',
       sortable: true,
       render: (value: string) => (
@@ -122,7 +191,7 @@ export const Chats: React.FC = () => {
   ];
 
   const handleRowClick = (chat: Chat) => {
-    navigate(`/chats/${chat.chat_id}`);
+    navigate(`/chats/${chat.telegram_chat_id}`);
   };
 
   return (
@@ -145,24 +214,30 @@ export const Chats: React.FC = () => {
 
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Статистика по чатам</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="text-center p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">
-              {chats.filter(c => c.chat_type === 'group').length}
+              {chats.length}
             </div>
-            <div className="text-sm text-blue-800">Групп</div>
+            <div className="text-sm text-blue-800">Всего чатов</div>
           </div>
           <div className="text-center p-4 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">
-              {chats.filter(c => c.chat_type === 'supergroup').length}
+              {chats.filter(c => c.chat_type === 'group').length}
             </div>
-            <div className="text-sm text-green-800">Супергрупп</div>
+            <div className="text-sm text-green-800">Групп</div>
           </div>
           <div className="text-center p-4 bg-purple-50 rounded-lg">
             <div className="text-2xl font-bold text-purple-600">
-              {chats.filter(c => c.channel_count > 0).length}
+              {chats.filter(c => c.chat_type === 'supergroup').length}
             </div>
-            <div className="text-sm text-purple-800">С каналами</div>
+            <div className="text-sm text-purple-800">Супергрупп</div>
+          </div>
+          <div className="text-center p-4 bg-orange-50 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600">
+              {chats.filter(c => c.linked_channel_info).length}
+            </div>
+            <div className="text-sm text-orange-800">С привязанными каналами</div>
           </div>
         </div>
       </div>

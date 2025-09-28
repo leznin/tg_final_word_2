@@ -11,11 +11,22 @@ from app.schemas.chat_moderators import (
     ChatModeratorResponse,
     ChatModeratorCreate,
     ChatModeratorUpdate,
-    ChatModeratorWithUserResponse
+    ChatModeratorWithUserResponse,
+    ModeratorListResponse
 )
 from app.services.chat_moderators import ChatModeratorService
 
 router = APIRouter()
+
+
+@router.get("/", response_model=ModeratorListResponse)
+async def get_all_moderators(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all moderators with chat information"""
+    moderator_service = ChatModeratorService(db)
+    moderators = await moderator_service.get_all_moderators_with_chat_info()
+    return {"moderators": moderators}
 
 
 @router.get("/chat/{chat_id}", response_model=List[ChatModeratorWithUserResponse])

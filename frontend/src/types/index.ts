@@ -1,15 +1,19 @@
 export interface Chat {
   id: number;
-  chat_id: number;
-  chat_title: string;
+  telegram_chat_id: number;
   chat_type: 'group' | 'supergroup' | 'channel';
-  admin_user_id: number;
-  added_date: string;
-  delete_messages_enabled: boolean;
-  max_edit_time_minutes: number;
-  channel_count: number;
+  title?: string;
+  username?: string;
+  added_by_user_id: number;
+  is_active: boolean;
+  added_at: string;
+  created_at: string;
+  updated_at: string;
   linked_channel_id?: number;
-  linked_channel?: LinkedChannel;
+  message_edit_timeout_minutes?: number;
+  delete_messages_enabled?: boolean;
+  linked_channel_info?: LinkedChannelWithAdmin;
+  chat_moderators: ChannelModerator[];
 }
 
 export interface ChatDetail {
@@ -47,6 +51,25 @@ export interface LinkedChannel {
   telegram_chat_id: number;
   title?: string;
   username?: string;
+}
+
+export interface ChannelModerator {
+  id: number;
+  moderator_user_id: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  added_date?: string;
+}
+
+export interface LinkedChannelWithAdmin {
+  id: number;
+  telegram_chat_id: number;
+  title?: string;
+  username?: string;
+  admin_user_id: number;
+  admin_username?: string;
+  admin_name?: string;
 }
 
 export interface DashboardStats {

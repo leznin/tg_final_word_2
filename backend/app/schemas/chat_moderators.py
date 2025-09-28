@@ -3,7 +3,7 @@ Chat moderators Pydantic schemas
 """
 
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -51,3 +51,23 @@ class TelegramUserForwardData(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     username: Optional[str] = None
+
+
+class ModeratorListItem(BaseModel):
+    """Schema for moderator list item with chat information"""
+    id: int
+    chat_id: int
+    chat_title: str
+    moderator_user_id: int
+    moderator_username: Optional[str] = None
+    moderator_name: str
+    added_by_user_id: int
+    added_date: str
+
+    class Config:
+        from_attributes = True
+
+
+class ModeratorListResponse(BaseModel):
+    """Schema for moderator list response"""
+    moderators: List[ModeratorListItem]

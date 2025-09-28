@@ -4,28 +4,31 @@ Chats API router
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from typing import List
 
 from app.core.database import get_db
-from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelRequest
+from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelRequest, ChatWithLinkedChannelResponse
 from app.services.chats import ChatService
+from app.models.chats import Chat
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ChatWithUserResponse])
+@router.get("/")
 async def get_chats(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all active chats with pagination"""
+    """Get all active chats (groups and supergroups) with linked channel information"""
     chat_service = ChatService(db)
-    chats = await chat_service.get_all_chats(skip, limit)
-    return chats
+    chats = await chat_service.get_chats_with_linked_channels_info(skip, limit)
+
+    return {"chats": chats}
 
 
-@router.get("/by-user/{user_id}", response_model=List[ChatResponse])
+@router.get("/by-user/{user_id}")
 async def get_chats_by_user(
     user_id: int,
     skip: int = 0,
@@ -35,10 +38,36 @@ async def get_chats_by_user(
     """Get all chats added by a specific user"""
     chat_service = ChatService(db)
     chats = await chat_service.get_chats_by_user(user_id, skip, limit)
-    return chats
+
+    # Convert to the format expected by frontend
+    chats_data = []
+    for chat in chats:
+        # Count linked channels
+        channel_count_result = await db.execute(
+            select(func.count(Chat.id))
+            .where(Chat.linked_channel_id == chat.id)
+            .where(Chat.is_active == True)
+        )
+        channel_count = channel_count_result.scalar() or 0
+
+        chat_data = {
+            "id": chat.id,
+            "chat_id": chat.telegram_chat_id,
+            "chat_title": chat.title or "",
+            "chat_type": chat.chat_type,
+            "admin_user_id": chat.added_by_user_id,
+            "added_date": chat.added_at.isoformat() if chat.added_at else "",
+            "delete_messages_enabled": False,  # TODO: implement this feature
+            "max_edit_time_minutes": chat.message_edit_timeout_minutes or 0,
+            "channel_count": channel_count,
+            "linked_channel_id": chat.linked_channel_id,
+        }
+        chats_data.append(chat_data)
+
+    return chats_data
 
 
-@router.get("/{chat_id}", response_model=ChatWithUserResponse)
+@router.get("/{chat_id}")
 async def get_chat(
     chat_id: int,
     db: AsyncSession = Depends(get_db)
@@ -48,10 +77,30 @@ async def get_chat(
     chat = await chat_service.get_chat(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    return chat
+
+    # Count linked channels
+    channel_count_result = await db.execute(
+        select(func.count(Chat.id))
+        .where(Chat.linked_channel_id == chat.id)
+        .where(Chat.is_active == True)
+    )
+    channel_count = channel_count_result.scalar() or 0
+
+    return {
+        "id": chat.id,
+        "chat_id": chat.telegram_chat_id,
+        "chat_title": chat.title or "",
+        "chat_type": chat.chat_type,
+        "admin_user_id": chat.added_by_user_id,
+        "added_date": chat.added_at.isoformat() if chat.added_at else "",
+        "delete_messages_enabled": False,  # TODO: implement this feature
+        "max_edit_time_minutes": chat.message_edit_timeout_minutes or 0,
+        "channel_count": channel_count,
+        "linked_channel_id": chat.linked_channel_id,
+    }
 
 
-@router.get("/telegram/{telegram_chat_id}", response_model=ChatWithUserResponse)
+@router.get("/telegram/{telegram_chat_id}")
 async def get_chat_by_telegram_id(
     telegram_chat_id: int,
     db: AsyncSession = Depends(get_db)
@@ -61,7 +110,27 @@ async def get_chat_by_telegram_id(
     chat = await chat_service.get_chat_by_telegram_id(telegram_chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    return chat
+
+    # Count linked channels
+    channel_count_result = await db.execute(
+        select(func.count(Chat.id))
+        .where(Chat.linked_channel_id == chat.id)
+        .where(Chat.is_active == True)
+    )
+    channel_count = channel_count_result.scalar() or 0
+
+    return {
+        "id": chat.id,
+        "chat_id": chat.telegram_chat_id,
+        "chat_title": chat.title or "",
+        "chat_type": chat.chat_type,
+        "admin_user_id": chat.added_by_user_id,
+        "added_date": chat.added_at.isoformat() if chat.added_at else "",
+        "delete_messages_enabled": False,  # TODO: implement this feature
+        "max_edit_time_minutes": chat.message_edit_timeout_minutes or 0,
+        "channel_count": channel_count,
+        "linked_channel_id": chat.linked_channel_id,
+    }
 
 
 @router.delete("/{chat_id}")
@@ -125,7 +194,7 @@ async def unlink_channel_from_chat(
     return {"message": "Channel unlinked successfully"}
 
 
-@router.get("/{chat_id}/linked-channel", response_model=ChatResponse)
+@router.get("/{chat_id}/linked-channel")
 async def get_linked_channel(
     chat_id: int,
     db: AsyncSession = Depends(get_db)
@@ -143,10 +212,29 @@ async def get_linked_channel(
     if not linked_channel:
         raise HTTPException(status_code=404, detail="No linked channel found")
 
-    return linked_channel
+    # Count linked channels
+    channel_count_result = await db.execute(
+        select(func.count(Chat.id))
+        .where(Chat.linked_channel_id == linked_channel.id)
+        .where(Chat.is_active == True)
+    )
+    channel_count = channel_count_result.scalar() or 0
+
+    return {
+        "id": linked_channel.id,
+        "chat_id": linked_channel.telegram_chat_id,
+        "chat_title": linked_channel.title or "",
+        "chat_type": linked_channel.chat_type,
+        "admin_user_id": linked_channel.added_by_user_id,
+        "added_date": linked_channel.added_at.isoformat() if linked_channel.added_at else "",
+        "delete_messages_enabled": False,  # TODO: implement this feature
+        "max_edit_time_minutes": linked_channel.message_edit_timeout_minutes or 0,
+        "channel_count": channel_count,
+        "linked_channel_id": linked_channel.linked_channel_id,
+    }
 
 
-@router.get("/user/{user_id}/available-channels", response_model=List[ChatResponse])
+@router.get("/user/{user_id}/available-channels")
 async def get_available_channels_for_user(
     user_id: int,
     db: AsyncSession = Depends(get_db)
@@ -154,4 +242,30 @@ async def get_available_channels_for_user(
     """Get all available channels for a user to link to their chats"""
     chat_service = ChatService(db)
     channels = await chat_service.get_available_channels_for_user(user_id)
-    return channels
+
+    # Convert to the format expected by frontend
+    channels_data = []
+    for channel in channels:
+        # Count linked channels
+        channel_count_result = await db.execute(
+            select(func.count(Chat.id))
+            .where(Chat.linked_channel_id == channel.id)
+            .where(Chat.is_active == True)
+        )
+        channel_count = channel_count_result.scalar() or 0
+
+        channel_data = {
+            "id": channel.id,
+            "chat_id": channel.telegram_chat_id,
+            "chat_title": channel.title or "",
+            "chat_type": channel.chat_type,
+            "admin_user_id": channel.added_by_user_id,
+            "added_date": channel.added_at.isoformat() if channel.added_at else "",
+            "delete_messages_enabled": False,  # TODO: implement this feature
+            "max_edit_time_minutes": channel.message_edit_timeout_minutes or 0,
+            "channel_count": channel_count,
+            "linked_channel_id": channel.linked_channel_id,
+        }
+        channels_data.append(channel_data)
+
+    return channels_data

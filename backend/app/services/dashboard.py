@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.users import User
 from app.models.chats import Chat
-from app.models.chat_members import ChatMember
+from app.models.chat_moderators import ChatModerator
 
 
 class DashboardService:
@@ -35,10 +35,10 @@ class DashboardService:
 
     async def get_total_moderators(self) -> int:
         """Get total count of unique moderators (users who are admins in chats)"""
-        # For now, we'll count unique users from chat_members table
-        # This represents users who have been seen in chats
+        # Count unique users from chat_moderators table
+        # This represents users who have been assigned as moderators
         result = await self.db.execute(
-            select(func.count(func.distinct(ChatMember.telegram_user_id)))
+            select(func.count(func.distinct(ChatModerator.moderator_user_id)))
         )
         return result.scalar() or 0
 

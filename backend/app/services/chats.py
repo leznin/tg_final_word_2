@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from typing import List, Optional
 from app.models.chats import Chat
-from app.schemas.chats import ChatCreate, ChatUpdate, TelegramChatData, LinkedChannelInfo
+from app.models.users import User
+from app.models.chat_moderators import ChatModerator
+from app.schemas.chats import ChatCreate, ChatUpdate, TelegramChatData, LinkedChannelInfo, ChatWithLinkedChannelResponse, ChannelWithAdmin
 
 
 class ChatService:
@@ -163,3 +165,67 @@ class ChatService:
             .where(Chat.is_active == True)
         )
         return result.scalars().all()
+
+    async def get_chats_with_linked_channels_info(self, skip: int = 0, limit: int = 100) -> List[ChatWithLinkedChannelResponse]:
+        """Get all active chats (groups and supergroups) with linked channel information including admin and moderators"""
+        # Get all chats that are groups or supergroups
+        chats_result = await self.db.execute(
+            select(Chat)
+            .where(Chat.is_active == True)
+            .where(Chat.chat_type.in_(['group', 'supergroup']))
+            .offset(skip)
+            .limit(limit)
+        )
+        chats = chats_result.scalars().all()
+
+        result = []
+        for chat in chats:
+            chat_data = ChatWithLinkedChannelResponse.model_validate(chat)
+
+            # Get moderators for the chat
+            chat_moderators_result = await self.db.execute(
+                select(ChatModerator).where(ChatModerator.chat_id == chat.id)
+            )
+            chat_moderators = chat_moderators_result.scalars().all()
+
+            # Prepare chat moderator info
+            chat_moderators_info = []
+            for mod in chat_moderators:
+                mod_info = {
+                    'id': mod.id,
+                    'moderator_user_id': mod.moderator_user_id,
+                    'first_name': mod.first_name,
+                    'last_name': mod.last_name,
+                    'username': mod.username,
+                    'added_date': mod.created_at.isoformat() if mod.created_at else None
+                }
+                chat_moderators_info.append(mod_info)
+
+            chat_data.chat_moderators = chat_moderators_info
+
+            if chat.linked_channel_id:
+                # Get linked channel information
+                linked_channel = await self.get_chat(chat.linked_channel_id)
+                if linked_channel:
+                    # Get admin information for the channel
+                    admin_result = await self.db.execute(
+                        select(User).where(User.id == linked_channel.added_by_user_id)
+                    )
+                    admin = admin_result.scalar_one_or_none()
+
+                    # Create channel info with admin
+                    channel_info = ChannelWithAdmin(
+                        id=linked_channel.id,
+                        telegram_chat_id=linked_channel.telegram_chat_id,
+                        title=linked_channel.title,
+                        username=linked_channel.username,
+                        admin_user_id=linked_channel.added_by_user_id,
+                        admin_username=admin.username if admin else None,
+                        admin_name=f"{admin.first_name or ''} {admin.last_name or ''}".strip() if admin else None
+                    )
+
+                    chat_data.linked_channel_info = channel_info
+
+            result.append(chat_data)
+
+        return result

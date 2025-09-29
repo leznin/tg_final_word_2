@@ -7,6 +7,7 @@ from sqlalchemy import select, func, and_, delete
 from typing import List, Optional, Dict, Any
 from app.models.chat_moderators import ChatModerator
 from app.models.chats import Chat
+from app.models.users import User
 from app.schemas.chat_moderators import ChatModeratorCreate, ChatModeratorUpdate
 
 
@@ -71,10 +72,14 @@ class ChatModeratorService:
                 ChatModerator.username.label('moderator_username'),
                 func.concat(ChatModerator.first_name, ' ', func.coalesce(ChatModerator.last_name, '')).label('moderator_name'),
                 ChatModerator.added_by_user_id,
+                User.username.label('added_by_username'),
+                User.first_name.label('added_by_first_name'),
+                User.last_name.label('added_by_last_name'),
                 ChatModerator.created_at.label('added_date')
             )
             .select_from(ChatModerator)
             .join(Chat, ChatModerator.chat_id == Chat.id)
+            .join(User, ChatModerator.added_by_user_id == User.id)
             .order_by(ChatModerator.created_at.desc())
         )
 
@@ -88,6 +93,9 @@ class ChatModeratorService:
                 'moderator_username': row.moderator_username,
                 'moderator_name': row.moderator_name.strip(),
                 'added_by_user_id': row.added_by_user_id,
+                'added_by_username': row.added_by_username,
+                'added_by_first_name': row.added_by_first_name,
+                'added_by_last_name': row.added_by_last_name,
                 'added_date': row.added_date.isoformat() if row.added_date else None
             }
             moderators.append(moderator)

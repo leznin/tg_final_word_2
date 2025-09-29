@@ -15,10 +15,12 @@ export const Moderators: React.FC = () => {
   const columns = [
     {
       key: 'moderator_user_id',
-      label: 'ID пользователя',
+      label: 'ID модератора',
       sortable: true,
       render: (value: number) => (
-        <span className="font-mono text-sm text-gray-600">{value}</span>
+        <div className="text-xs text-gray-500 font-mono">
+          {value}
+        </div>
       ),
     },
     {
@@ -61,9 +63,25 @@ export const Moderators: React.FC = () => {
       key: 'added_by_user_id',
       label: 'Добавил',
       sortable: true,
-      render: (value: number) => (
-        <span className="font-mono text-sm text-gray-600">ID: {value}</span>
-      ),
+      render: (value: number, moderator: Moderator) => {
+        const displayName = moderator.added_by_username
+          ? `@${moderator.added_by_username}`
+          : [moderator.added_by_first_name, moderator.added_by_last_name].filter(Boolean).join(' ') || `ID: ${value}`;
+
+        return (
+          <div className="flex items-center space-x-2">
+            <User className="h-4 w-4 text-gray-400" />
+            <div>
+              <div className="font-medium text-gray-900">{displayName}</div>
+              {moderator.added_by_username && (
+                <div className="text-xs text-gray-500">
+                  {[moderator.added_by_first_name, moderator.added_by_last_name].filter(Boolean).join(' ')}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'added_date',

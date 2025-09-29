@@ -62,6 +62,9 @@ class ModeratorListItem(BaseModel):
     moderator_username: Optional[str] = None
     moderator_name: str
     added_by_user_id: int
+    added_by_username: Optional[str] = None
+    added_by_first_name: Optional[str] = None
+    added_by_last_name: Optional[str] = None
     added_date: str
 
     class Config:

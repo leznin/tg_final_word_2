@@ -109,6 +109,11 @@ export const ChatDetail: React.FC = () => {
                 }`}>
                   Удаление: {chat.delete_messages_enabled ? 'Вкл' : 'Откл'}
                 </span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  chat.ai_content_check_enabled ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                }`}>
+                  AI проверка: {chat.ai_content_check_enabled ? 'Вкл' : 'Откл'}
+                </span>
               </div>
             </div>
           </div>

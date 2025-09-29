@@ -1,9 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Bot, DollarSign, FileText, Save, RefreshCw, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Key, Bot, DollarSign, FileText, Save, RefreshCw, AlertCircle, CheckCircle, Eye, EyeOff, Lightbulb } from 'lucide-react';
 import { useOpenRouterSettings, useSaveOpenRouterSettings, useUpdateOpenRouterSettings, useOpenRouterModels, useOpenRouterBalance } from '../hooks/useOpenRouter';
 import { Loading } from '../components/ui/Loading';
 import { ModelSelector } from '../components/ModelSelector';
 import { OpenRouterModel, OpenRouterSettingsCreate, OpenRouterSettingsUpdate } from '../types';
+
+const EXAMPLE_PROMPT = JSON.stringify({
+  "system_prompt": {
+    "task": "Check messages for prohibited content according to Telegram rules",
+    "input": "Message text",
+    "output": "true | false",
+    "rules": [
+      {
+        "category": "Violence and Extremism",
+        "description": "Calls for violence, terrorism, extremist propaganda, organizing attacks, instructions for creating weapons or explosives."
+      },
+      {
+        "category": "Child Exploitation",
+        "description": "Any sexual content involving minors, images, discussions, or insinuations. Zero tolerance."
+      },
+      {
+        "category": "Pornography and NSFW",
+        "description": "Pornography, shocking sexual materials, content violating local laws."
+      },
+      {
+        "category": "Graphic and Shocking Content",
+        "description": "Bloody scenes, torture, murders, excessive graphic violence."
+      },
+      {
+        "category": "Fraud and Spam",
+        "description": "Phishing, scams, deceptive schemes, mass advertising or spam."
+      },
+      {
+        "category": "Drugs and Illegal Substances",
+        "description": "Sale, promotion, or instructions for creating drugs or psychotropic substances."
+      },
+      {
+        "category": "Weapons and Dangerous Goods",
+        "description": "Sale or promotion of weapons, ammunition, explosives, or instructions for manufacturing them."
+      },
+      {
+        "category": "Copyright Infringement",
+        "description": "Pirated content: illegal movies, music, books, or software."
+      },
+      {
+        "category": "Discrimination and Hate Speech",
+        "description": "Insults, incitement to hatred based on race, nationality, religion, gender, sexual orientation, etc."
+      },
+      {
+        "category": "Harassment and Bullying",
+        "description": "Harassment, threats, stalking, cyberbullying."
+      },
+      {
+        "category": "Fraudulent Finance",
+        "description": "Ponzi schemes, deceptive investments, crypto scams, fake documents."
+      },
+      {
+        "category": "Impersonation",
+        "description": "Impersonating another person, fraud using a name/brand."
+      },
+      {
+        "category": "Politically Prohibited Content",
+        "description": "Calls for overthrowing the government, violating local jurisdiction laws."
+      }
+    ],
+    "instructions": "Respond strictly with 'true' if the message violates at least one rule, or 'false' if it does not. Do not provide explanations, categories, or reasoning."
+  }
+}, null, 2);
 
 export const OpenRouter: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
@@ -70,6 +133,10 @@ export const OpenRouter: React.FC = () => {
 
   const handleRefreshBalance = () => {
     refetchBalance();
+  };
+
+  const handleSetExamplePrompt = () => {
+    setPrompt(EXAMPLE_PROMPT);
   };
 
   const formatBalance = (credits: number) => {
@@ -273,11 +340,21 @@ export const OpenRouter: React.FC = () => {
 
             {/* Prompt Card */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <FileText className="h-5 w-5 text-purple-600" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <FileText className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <h2 className="text-lg font-semibold text-slate-900">Системный промпт</h2>
                 </div>
-                <h2 className="text-lg font-semibold text-slate-900">Системный промпт</h2>
+                <button
+                  onClick={handleSetExamplePrompt}
+                  className="flex items-center space-x-2 px-3 py-1.5 text-sm bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg transition-colors"
+                  title="Загрузить пример промпта"
+                >
+                  <Lightbulb className="h-4 w-4" />
+                  <span>пример промпт</span>
+                </button>
               </div>
 
               <div>

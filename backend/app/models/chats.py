@@ -28,6 +28,9 @@ class Chat(Base):
     # Message edit timeout in minutes (None = editing disabled)
     message_edit_timeout_minutes = Column(SmallInteger, nullable=True)
 
+    # AI content check enabled flag
+    ai_content_check_enabled = Column(Boolean, default=False, nullable=False)
+
     # Additional information from Telegram API
     member_count = Column(Integer, nullable=True)
     description = Column(Text, nullable=True)

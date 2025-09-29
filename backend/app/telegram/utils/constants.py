@@ -160,6 +160,7 @@ class ButtonTexts:
     UNLINK_CHANNEL_TEMPLATE = "🔗 Отвязать канал: {channel_title}"
     EDIT_TIMEOUT_SETTINGS = "⚙️ Настройки редактирования"
     MANAGE_MODERATORS = "👮‍♂️ Управление модераторами"
+    AI_CONTENT_CHECK_SETTINGS = "🤖 AI проверка контента"
 
     # Channel info
     CHANNEL_NOTIFICATIONS = "🔗 Используется для уведомлений"
@@ -169,6 +170,10 @@ class ButtonTexts:
     SET_TIMEOUT_MINUTES = "{minutes} минут"
     CUSTOM_TIMEOUT = "⏰ Ввести вручную"
     CANCEL_CUSTOM_TIMEOUT = "❌ Отмена"
+
+    # AI content check options
+    ENABLE_AI_CHECK = "✅ Включить AI проверку"
+    DISABLE_AI_CHECK = "❌ Отключить AI проверку"
 
     # Moderator actions
     VIEW_MODERATORS = "👥 Управление модераторами ({count})"
@@ -229,6 +234,20 @@ class HelpMessages:
     TIMEOUT_DISABLED = "запрещено"
     TIMEOUT_SET_SUCCESS_TEMPLATE = "✅ Время редактирования установлено: {minutes} минут"
     EDITING_DISABLED_SUCCESS = "🚫 Редактирование сообщений запрещено"
+
+    # AI content check messages
+    AI_CONTENT_CHECK_SETTINGS_TEMPLATE = (
+        "🤖 <b>Настройки AI проверки контента</b>\n\n"
+        "👥 <b>Чат:</b> {chat_title}\n"
+        "🤖 <b>Текущий статус:</b> {current_setting}\n\n"
+        "AI проверка анализирует редактируемые сообщения на запрещенный контент.\n"
+        "При обнаружении бот удаляет сообщение и отправляет уведомление в связанный канал."
+    )
+
+    AI_CHECK_ENABLED = "включена"
+    AI_CHECK_DISABLED = "отключена"
+    AI_CHECK_ENABLED_SUCCESS = "✅ AI проверка контента включена"
+    AI_CHECK_DISABLED_SUCCESS = "❌ AI проверка контента отключена"
 
 
 class ModeratorMessages:

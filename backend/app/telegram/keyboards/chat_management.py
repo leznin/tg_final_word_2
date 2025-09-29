@@ -93,6 +93,12 @@ def get_chat_actions_keyboard(chat: Chat, linked_channel: Chat = None) -> Inline
             callback_data=f"manage_moderators:{chat.id}"
         )])
 
+        # AI content check settings button (only for group chats)
+        keyboard.append([InlineKeyboardButton(
+            text=ButtonTexts.AI_CONTENT_CHECK_SETTINGS,
+            callback_data=f"ai_content_check_settings:{chat.id}"
+        )])
+
     # Back button
     keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data="back_to_menu")])
 
@@ -248,4 +254,28 @@ def get_confirm_remove_moderator_keyboard(chat_id: int, moderator_id: int, moder
         )],
         [InlineKeyboardButton(text=ButtonTexts.CANCEL, callback_data=f"view_moderators:{chat_id}")]
     ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_ai_content_check_options_keyboard(chat_id: int, current_status: bool) -> InlineKeyboardMarkup:
+    """
+    Keyboard for AI content check options
+    """
+    keyboard = []
+
+    # Enable/Disable buttons based on current status
+    if not current_status:
+        keyboard.append([InlineKeyboardButton(
+            text=ButtonTexts.ENABLE_AI_CHECK,
+            callback_data=f"set_ai_check:enable:{chat_id}"
+        )])
+    else:
+        keyboard.append([InlineKeyboardButton(
+            text=ButtonTexts.DISABLE_AI_CHECK,
+            callback_data=f"set_ai_check:disable:{chat_id}"
+        )])
+
+    # Back button
+    keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data=f"back_to_chat_actions:{chat_id}")])
+
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

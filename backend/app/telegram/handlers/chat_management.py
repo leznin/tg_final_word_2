@@ -21,7 +21,8 @@ from app.telegram.keyboards.chat_management import (
     get_custom_timeout_keyboard,
     get_moderator_actions_keyboard,
     get_moderators_list_keyboard,
-    get_confirm_remove_moderator_keyboard
+    get_confirm_remove_moderator_keyboard,
+    get_ai_content_check_options_keyboard
 )
 from app.telegram.utils.constants import (
     StartMessages, ChatManagementMessages, ChannelLinkingMessages,
@@ -894,3 +895,112 @@ async def handle_remove_moderator_confirmed(
             f"❌ Произошла ошибка: {str(e)}",
             reply_markup=get_back_to_chats_keyboard()
         )
+
+
+@chat_management_router.callback_query(F.data.startswith("ai_content_check_settings:"))
+async def handle_ai_content_check_settings(
+    callback: types.CallbackQuery,
+    db: AsyncSession,
+    state: FSMContext
+) -> None:
+    """
+    Handle AI content check settings button - show current status and options
+    """
+    # Extract chat ID from callback data
+    chat_id = int(callback.data.split(":")[1])
+
+    linking_service = ChatLinkingService(db)
+
+    # Get chat details
+    chat = await linking_service.chat_service.get_chat(chat_id)
+    if not chat:
+        await callback.message.edit_text(
+            ChatManagementMessages.CHAT_NOT_FOUND
+        )
+        await state.clear()
+        return
+
+    # Show current setting in the message
+    current_setting = HelpMessages.AI_CHECK_ENABLED if chat.ai_content_check_enabled else HelpMessages.AI_CHECK_DISABLED
+
+    response_text = HelpMessages.AI_CONTENT_CHECK_SETTINGS_TEMPLATE.format(
+        chat_title=chat.title or ButtonTexts.UNTITLED_CHAT,
+        current_setting=current_setting
+    )
+
+    keyboard = get_ai_content_check_options_keyboard(chat.id, chat.ai_content_check_enabled)
+    await callback.message.edit_text(
+        response_text,
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+
+    # Set state for AI check setting selection
+    await state.set_state(ChatManagementStates.setting_edit_timeout)  # Reusing existing state
+    await state.update_data(selected_chat_id=chat.id)
+
+
+@chat_management_router.callback_query(F.data.startswith("set_ai_check:"))
+async def handle_ai_check_option_selection(
+    callback: types.CallbackQuery,
+    db: AsyncSession,
+    state: FSMContext
+) -> None:
+    """
+    Handle AI check option selection (enable/disable)
+    """
+    # Extract option and chat ID from callback data
+    parts = callback.data.split(":")
+    option = parts[1]
+    chat_id = int(parts[2])
+
+    linking_service = ChatLinkingService(db)
+
+    # Get chat details
+    chat = await linking_service.chat_service.get_chat(chat_id)
+    if not chat:
+        await callback.message.edit_text(
+            ChatManagementMessages.CHAT_NOT_FOUND
+        )
+        await state.clear()
+        return
+
+    # Determine new setting
+    if option == "enable":
+        new_setting = True
+        success_message = HelpMessages.AI_CHECK_ENABLED_SUCCESS
+    elif option == "disable":
+        new_setting = False
+        success_message = HelpMessages.AI_CHECK_DISABLED_SUCCESS
+    else:
+        await callback.message.edit_text("❌ Неверная опция")
+        return
+
+    # Update chat settings
+    from app.schemas.chats import ChatUpdate
+    update_data = ChatUpdate(ai_content_check_enabled=new_setting)
+    updated_chat = await linking_service.chat_service.update_chat(chat_id, update_data)
+
+    if updated_chat:
+        # Return to chat actions
+        linked_channel = await linking_service.chat_service.get_linked_channel(chat.id)
+        keyboard = get_chat_actions_keyboard(chat, linked_channel)
+        response_text = ChatManagementMessages.SELECTED_CHAT_TEMPLATE.format(
+            chat_title=chat.title or ButtonTexts.UNTITLED_CHAT,
+            channel_title=linked_channel.title or ButtonTexts.UNTITLED_CHAT
+        ) if linked_channel else ChatManagementMessages.SELECTED_CHAT_NO_CHANNEL.format(
+            chat_title=chat.title or ButtonTexts.UNTITLED_CHAT
+        )
+        if linked_channel and linked_channel.username:
+            response_text += f" (@{linked_channel.username})"
+        response_text += f"\n\n{success_message}\n\n" + ChatManagementMessages.SELECT_ACTION
+
+        await callback.message.edit_text(
+            response_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    else:
+        await callback.message.edit_text(ChatManagementMessages.SETTINGS_SAVED_ERROR)
+
+    await state.clear()

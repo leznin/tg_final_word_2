@@ -239,11 +239,11 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
 
     print(f"Message {message.message_id} from chat {chat.id} has changes, processing deletion and notification")
 
-    # Check message content for prohibited material using AI
+    # Check message content for prohibited material using AI (only if enabled for this chat)
     message_text = getattr(message, 'text', '') or getattr(message, 'caption', '') or ''
     is_prohibited = False
 
-    if message_text.strip():
+    if chat.ai_content_check_enabled and message_text.strip():
         try:
             is_prohibited = await openrouter_service.check_message_content(message_text)
             if is_prohibited:
@@ -253,6 +253,10 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
         except Exception as e:
             print(f"Error checking message content with AI: {e}")
             # Continue with notification even if AI check fails
+    elif not chat.ai_content_check_enabled:
+        print(f"AI content check is disabled for chat {chat.id}")
+    else:
+        print(f"No text content to check in message {message.message_id}")
 
     # Delete the message from the group chat
     try:

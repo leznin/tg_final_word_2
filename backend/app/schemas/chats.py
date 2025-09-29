@@ -25,6 +25,7 @@ class ChatBase(BaseModel):
     is_active: bool = True
     linked_channel_id: Optional[int] = None
     message_edit_timeout_minutes: Optional[int] = Field(None, ge=1, le=1440, description="Minutes allowed for message editing (None = disabled)")
+    ai_content_check_enabled: bool = False
     delete_messages_enabled: bool = False
 
 
@@ -40,6 +41,7 @@ class ChatUpdate(BaseModel):
     is_active: Optional[bool] = None
     linked_channel_id: Optional[int] = None
     message_edit_timeout_minutes: Optional[int] = Field(None, ge=1, le=1440, description="Minutes allowed for message editing (None = disabled)")
+    ai_content_check_enabled: Optional[bool] = None
 
 
 class ChatResponse(ChatBase):

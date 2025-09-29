@@ -166,6 +166,107 @@ class OpenRouterService:
         except Exception:
             return False
 
+    async def check_message_content(self, message_text: str) -> bool:
+        """
+        Check if message contains prohibited content using OpenRouter AI
+        Returns True if content is prohibited, False otherwise
+        """
+        try:
+            settings = await self.get_settings()
+            if not settings or not settings.is_active:
+                print("OpenRouter settings not configured or inactive")
+                return False
+
+            if not settings.selected_model:
+                print("No model selected for OpenRouter")
+                return False
+
+            if not message_text or not message_text.strip():
+                return False
+
+            headers = {
+                "Authorization": f"Bearer {settings.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/openrouter/openrouter",
+                "X-Title": "Telegram Content Moderator"
+            }
+
+            # Prepare system prompt
+            system_prompt = ""
+            if settings.prompt:
+                try:
+                    import json
+                    prompt_data = json.loads(settings.prompt)
+                    if "system_prompt" in prompt_data:
+                        system_data = prompt_data["system_prompt"]
+                        system_prompt = f"""Task: {system_data.get('task', '')}
+Input: {system_data.get('input', '')}
+Output: {system_data.get('output', '')}
+
+Rules:
+"""
+                        for rule in system_data.get('rules', []):
+                            system_prompt += f"- {rule.get('category', '')}: {rule.get('description', '')}\n"
+
+                        system_prompt += f"\n{system_data.get('instructions', '')}"
+                    else:
+                        system_prompt = settings.prompt
+                except (json.JSONDecodeError, KeyError):
+                    system_prompt = settings.prompt
+
+            # Prepare the request payload
+            payload = {
+                "model": settings.selected_model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": message_text.strip()
+                    }
+                ],
+                "temperature": 0.1,  # Low temperature for consistent binary responses
+                "max_tokens": 10,    # Minimal tokens for "true"/"false" response
+                "top_p": 1,
+                "frequency_penalty": 0,
+                "presence_penalty": 0
+            }
+
+            response = await self.client.post(
+                f"{self.OPENROUTER_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30.0
+            )
+
+            if response.status_code != 200:
+                print(f"OpenRouter API error: {response.status_code} - {response.text}")
+                return False
+
+            response_data = response.json()
+
+            # Extract the response content
+            if "choices" in response_data and len(response_data["choices"]) > 0:
+                content = response_data["choices"][0].get("message", {}).get("content", "").strip().lower()
+
+                # Check for explicit true/false responses
+                if content == "true":
+                    return True
+                elif content == "false":
+                    return False
+                else:
+                    print(f"Unexpected AI response: {content}")
+                    return False
+            else:
+                print(f"Invalid response structure from OpenRouter: {response_data}")
+                return False
+
+        except Exception as e:
+            print(f"Error checking message content with OpenRouter: {str(e)}")
+            return False
+
     async def close(self):
         """Close HTTP client"""
         await self.client.aclose()

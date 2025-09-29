@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from app.services.chats import ChatService
 from app.services.messages import MessageService
+from app.services.openrouter import OpenRouterService
 from app.telegram.services.chat_linking import ChatLinkingService
 from app.telegram.services.moderator_management import ModeratorManagementService
 from app.telegram.states import ChatManagementStates
@@ -17,6 +18,106 @@ from app.telegram.utils.constants import ChannelLinkingMessages, MessageEditingM
 
 # Create router for message updates
 message_router = Router()
+
+
+async def send_media_notification_to_channel(bot: Bot, channel_chat_id: int, message: types.Message, notification_text: str) -> None:
+    """
+    Send media from edited message to linked channel with notification text as caption
+    """
+    try:
+        # Determine media type and send accordingly
+        if message.photo:
+            # Send photo with notification as caption
+            largest_photo = message.photo[-1] if message.photo else None
+            if largest_photo:
+                await bot.send_photo(
+                    chat_id=channel_chat_id,
+                    photo=largest_photo.file_id,
+                    caption=notification_text,
+                    parse_mode="HTML"
+                )
+        elif message.video:
+            # Send video with notification as caption
+            await bot.send_video(
+                chat_id=channel_chat_id,
+                video=message.video.file_id,
+                caption=notification_text,
+                parse_mode="HTML"
+            )
+        elif message.document:
+            # Send document with notification as caption
+            await bot.send_document(
+                chat_id=channel_chat_id,
+                document=message.document.file_id,
+                caption=notification_text,
+                parse_mode="HTML"
+            )
+        elif message.audio:
+            # Send audio with notification as caption
+            await bot.send_audio(
+                chat_id=channel_chat_id,
+                audio=message.audio.file_id,
+                caption=notification_text,
+                parse_mode="HTML"
+            )
+        elif message.voice:
+            # Send voice with notification as caption
+            await bot.send_voice(
+                chat_id=channel_chat_id,
+                voice=message.voice.file_id,
+                caption=notification_text,
+                parse_mode="HTML"
+            )
+        elif message.animation:
+            # Send animation (GIF) with notification as caption
+            await bot.send_animation(
+                chat_id=channel_chat_id,
+                animation=message.animation.file_id,
+                caption=notification_text,
+                parse_mode="HTML"
+            )
+        elif message.sticker:
+            # Send sticker with notification as caption (stickers can have text)
+            await bot.send_sticker(
+                chat_id=channel_chat_id,
+                sticker=message.sticker.file_id
+            )
+            # Send notification text separately since stickers don't support captions
+            await bot.send_message(
+                chat_id=channel_chat_id,
+                text=notification_text,
+                parse_mode="HTML"
+            )
+        elif message.video_note:
+            # Send video note (round video) - video notes don't support captions
+            await bot.send_video_note(
+                chat_id=channel_chat_id,
+                video_note=message.video_note.file_id
+            )
+            # Send notification text separately
+            await bot.send_message(
+                chat_id=channel_chat_id,
+                text=notification_text,
+                parse_mode="HTML"
+            )
+        else:
+            # No media, just send text notification
+            await bot.send_message(
+                chat_id=channel_chat_id,
+                text=notification_text,
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        print(f"Failed to send media notification to channel {channel_chat_id}: {e}")
+        # Fallback: send text notification if media sending fails
+        try:
+            await bot.send_message(
+                chat_id=channel_chat_id,
+                text=notification_text,
+                parse_mode="HTML"
+            )
+        except Exception as fallback_error:
+            print(f"Fallback notification also failed: {fallback_error}")
 
 
 @message_router.edited_message()
@@ -31,6 +132,7 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
     chat_service = ChatService(db)
     message_service = MessageService(db)
     moderator_service = ModeratorManagementService(db)
+    openrouter_service = OpenRouterService(db)
 
     # Get the chat from database
     chat = await chat_service.get_chat_by_telegram_id(message.chat.id)
@@ -77,18 +179,6 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
             # Within allowed time - allow editing
             print(f"Message {message.message_id} from chat {chat.id} edited within timeout, allowing edit")
 
-    if not should_delete_and_notify:
-        # Skip deletion and notification, go directly to database update
-        print(f"Message {message.message_id} from chat {chat.id} has changes, updating database only")
-
-        # Update the message in database with new content
-        try:
-            await message_service.update_message_from_telegram(chat.id, telegram_message_data)
-            print(f"Successfully updated message {message.message_id} in database")
-        except Exception as e:
-            print(f"Failed to update message {message.message_id} in database: {e}")
-        return
-
     # Prepare telegram message data for comparison
     telegram_message_data = {
         'message_id': message.message_id,
@@ -128,6 +218,18 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
     if message.video_note:
         telegram_message_data['video_note'] = {'file_id': message.video_note.file_id}
 
+    if not should_delete_and_notify:
+        # Skip deletion and notification, go directly to database update
+        print(f"Message {message.message_id} from chat {chat.id} has changes, updating database only")
+
+        # Update the message in database with new content
+        try:
+            await message_service.update_message_from_telegram(chat.id, telegram_message_data)
+            print(f"Successfully updated message {message.message_id} in database")
+        except Exception as e:
+            print(f"Failed to update message {message.message_id} in database: {e}")
+        return
+
     # Compare message with database version
     has_changes = await message_service.compare_message_with_telegram_data(db_message, telegram_message_data)
 
@@ -136,6 +238,21 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
         return
 
     print(f"Message {message.message_id} from chat {chat.id} has changes, processing deletion and notification")
+
+    # Check message content for prohibited material using AI
+    message_text = getattr(message, 'text', '') or getattr(message, 'caption', '') or ''
+    is_prohibited = False
+
+    if message_text.strip():
+        try:
+            is_prohibited = await openrouter_service.check_message_content(message_text)
+            if is_prohibited:
+                print(f"Message {message.message_id} contains prohibited content according to AI check")
+            else:
+                print(f"Message {message.message_id} passed AI content check")
+        except Exception as e:
+            print(f"Error checking message content with AI: {e}")
+            # Continue with notification even if AI check fails
 
     # Delete the message from the group chat
     try:
@@ -152,6 +269,10 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
     try:
         # Format the notification message
         edited_info = MessageEditingMessages.MESSAGE_DELETED_HEADER
+
+        # Add prohibited content warning if detected
+        if is_prohibited:
+            edited_info += MessageEditingMessages.PROHIBITED_CONTENT_WARNING
 
         # Add chat name at the beginning
         edited_info += MessageEditingMessages.CHAT_INFO_TEMPLATE.format(
@@ -221,11 +342,12 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
         else:
             edited_info += MessageEditingMessages.NEW_MESSAGE_NO_TEXT
 
-        # Send notification to linked channel
-        await bot.send_message(
-            chat_id=linked_channel.telegram_chat_id,
-            text=edited_info,
-            parse_mode="HTML"
+        # Send notification to linked channel with media if present
+        await send_media_notification_to_channel(
+            bot=bot,
+            channel_chat_id=linked_channel.telegram_chat_id,
+            message=message,
+            notification_text=edited_info
         )
         print(f"Successfully sent notification about edited message to channel {linked_channel.telegram_chat_id}")
 
@@ -238,6 +360,12 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
         print(f"Successfully updated message {message.message_id} in database")
     except Exception as e:
         print(f"Failed to update message {message.message_id} in database: {e}")
+
+    # Close OpenRouter service
+    try:
+        await openrouter_service.close()
+    except Exception as e:
+        print(f"Error closing OpenRouter service: {e}")
 
 
 @message_router.message(ChatManagementStates.waiting_for_channel_forward)

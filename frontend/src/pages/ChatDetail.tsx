@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Radio, Settings, Calendar, User, Link, Unlink, Plus, Trash2, Clock } from 'lucide-react';
+import { ArrowLeft, Users, Radio, Settings, Calendar, User, Link, Unlink, Plus, Trash2, Clock, MessageSquare, FileText, ExternalLink } from 'lucide-react';
 import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { StatsCard } from '../components/ui/StatsCard';
@@ -65,7 +65,7 @@ export const ChatDetail: React.FC = () => {
     },
     {
       title: 'Участники',
-      value: membersData?.length || 0,
+      value: chat.member_count || membersData?.length || 0,
       icon: User,
       gradient: 'bg-gradient-to-r from-green-500 to-green-600'
     },
@@ -130,6 +130,66 @@ export const ChatDetail: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Дополнительная информация о чате */}
+      {(chat.description || chat.invite_link || chat.last_info_update) && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <MessageSquare className="h-5 w-5 mr-2 text-blue-500" />
+            Информация о чате
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {chat.description && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <FileText className="h-5 w-5 text-gray-400 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">Описание</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">{chat.description}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {chat.invite_link && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <ExternalLink className="h-5 w-5 text-gray-400 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">Пригласительная ссылка</h3>
+                    <a
+                      href={chat.invite_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
+                    >
+                      {chat.invite_link}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+            {chat.last_info_update && (
+              <div className="border border-gray-200 rounded-lg p-4 md:col-span-2">
+                <div className="flex items-start space-x-3">
+                  <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">Последнее обновление информации</h3>
+                    <p className="text-sm text-gray-600">
+                      {new Date(chat.last_info_update).toLocaleDateString('ru-RU', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Двухколоночный layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

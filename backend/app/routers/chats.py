@@ -57,7 +57,7 @@ async def get_chats_by_user(
             "chat_type": chat.chat_type,
             "admin_user_id": chat.added_by_user_id,
             "added_date": chat.added_at.isoformat() if chat.added_at else "",
-            "delete_messages_enabled": False,  # TODO: implement this feature
+            "delete_messages_enabled": chat.delete_messages_enabled,
             "max_edit_time_minutes": chat.message_edit_timeout_minutes or 0,
             "channel_count": channel_count,
             "linked_channel_id": chat.linked_channel_id,
@@ -162,8 +162,14 @@ async def get_chat(
         "admin_user_id": chat.added_by_user_id,
         "added_date": chat.added_at.isoformat() if chat.added_at else "",
         "is_active": chat.is_active,
-        "delete_messages_enabled": False,  # TODO: implement this feature
+        "delete_messages_enabled": chat.delete_messages_enabled,
+        "ai_content_check_enabled": chat.ai_content_check_enabled,
         "max_edit_time_minutes": chat.message_edit_timeout_minutes or 0,
+        "member_count": chat.member_count,
+        "description": chat.description,
+        "invite_link": chat.invite_link,
+        "bot_permissions": chat.bot_permissions,
+        "last_info_update": chat.last_info_update.isoformat() if chat.last_info_update else None,
         "linked_channel": linked_channel_data
     }
 
@@ -200,7 +206,7 @@ async def get_chat_by_telegram_id(
         "chat_type": chat.chat_type,
         "admin_user_id": chat.added_by_user_id,
         "added_date": chat.added_at.isoformat() if chat.added_at else "",
-        "delete_messages_enabled": False,  # TODO: implement this feature
+        "delete_messages_enabled": chat.delete_messages_enabled,
         "max_edit_time_minutes": chat.message_edit_timeout_minutes or 0,
         "channel_count": channel_count,
         "linked_channel_id": chat.linked_channel_id,
@@ -390,7 +396,7 @@ async def get_linked_channel(
         "chat_type": linked_channel.chat_type,
         "admin_user_id": linked_channel.added_by_user_id,
         "added_date": linked_channel.added_at.isoformat() if linked_channel.added_at else "",
-        "delete_messages_enabled": False,  # TODO: implement this feature
+        "delete_messages_enabled": chat.delete_messages_enabled,
         "max_edit_time_minutes": linked_channel.message_edit_timeout_minutes or 0,
         "channel_count": channel_count,
         "linked_channel_id": linked_channel.linked_channel_id,
@@ -424,7 +430,7 @@ async def get_available_channels_for_user(
             "chat_type": channel.chat_type,
             "admin_user_id": channel.added_by_user_id,
             "added_date": channel.added_at.isoformat() if channel.added_at else "",
-            "delete_messages_enabled": False,  # TODO: implement this feature
+            "delete_messages_enabled": chat.delete_messages_enabled,
             "max_edit_time_minutes": channel.message_edit_timeout_minutes or 0,
             "channel_count": channel_count,
             "linked_channel_id": channel.linked_channel_id,

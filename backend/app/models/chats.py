@@ -31,6 +31,9 @@ class Chat(Base):
     # AI content check enabled flag
     ai_content_check_enabled = Column(Boolean, default=False, nullable=False)
 
+    # Delete messages enabled flag
+    delete_messages_enabled = Column(Boolean, default=False, nullable=False)
+
     # Additional information from Telegram API
     member_count = Column(Integer, nullable=True)
     description = Column(Text, nullable=True)

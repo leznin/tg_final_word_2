@@ -11,8 +11,8 @@ export interface Chat {
   updated_at: string;
   linked_channel_id?: number;
   message_edit_timeout_minutes?: number;
-  ai_content_check_enabled?: boolean;
-  delete_messages_enabled?: boolean;
+  ai_content_check_enabled: boolean;
+  delete_messages_enabled: boolean;
   linked_channel_info?: LinkedChannelWithAdmin;
   chat_moderators: ChannelModerator[];
   member_count?: number;
@@ -31,8 +31,13 @@ export interface ChatDetail {
   added_date: string;
   is_active: boolean;
   delete_messages_enabled: boolean;
-  ai_content_check_enabled?: boolean;
+  ai_content_check_enabled: boolean;
   max_edit_time_minutes: number;
+  member_count?: number;
+  description?: string;
+  invite_link?: string;
+  bot_permissions?: BotPermissions;
+  last_info_update?: string;
   linked_channel?: LinkedChannelWithAdmin | null;
 }
 

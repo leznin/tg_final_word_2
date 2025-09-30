@@ -254,9 +254,10 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
             ai_check_available = True
         else:
             print(f"AI content check subscription expired or not found for chat {chat.id}")
-            # Optionally disable AI check for this chat if subscription expired
-            # chat.ai_content_check_enabled = False
-            # await db.commit()
+            # Automatically disable AI check for this chat if subscription expired
+            print(f"Automatically disabling AI content check for chat {chat.id} due to expired subscription")
+            chat.ai_content_check_enabled = False
+            await db.commit()
 
     if ai_check_available:
         try:

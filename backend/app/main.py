@@ -13,6 +13,7 @@ from app.routers import api_router
 from app.admin.routes import admin_router
 from app.telegram.bot import TelegramBot
 from app.services.messages import MessageService
+from app.services.chat_subscriptions import ChatSubscriptionsService
 from fastapi import Request
 
 
@@ -35,20 +36,45 @@ def get_telegram_bot():
 
 
 async def cleanup_old_messages():
-    """Background task to clean up old messages"""
+    """Background task to clean up old messages and expired subscriptions"""
     while True:
         try:
             # Get database session
             async with async_session() as db:
+                # Clean up old messages
                 message_service = MessageService(db)
                 deleted_count = await message_service.delete_old_messages(settings.MESSAGE_RETENTION_HOURS)
                 if deleted_count > 0:
                     print(f"Cleaned up {deleted_count} messages older than {settings.MESSAGE_RETENTION_HOURS} hours")
+
+                # Check for expired subscriptions and disable AI content check
+                subscriptions_service = ChatSubscriptionsService(db)
+                chats_service = await get_chats_service(db)
+                expired_subscriptions = await subscriptions_service.get_expiring_subscriptions(days_ahead=0)
+
+                disabled_count = 0
+                for subscription in expired_subscriptions:
+                    chat = await chats_service.get_chat(subscription.chat_id)
+                    if chat and chat.ai_content_check_enabled:
+                        print(f"Disabling AI content check for chat {chat.id} due to expired subscription")
+                        chat.ai_content_check_enabled = False
+                        disabled_count += 1
+
+                if disabled_count > 0:
+                    await db.commit()
+                    print(f"Disabled AI content check for {disabled_count} chats with expired subscriptions")
+
         except Exception as e:
-            print(f"Error during message cleanup: {e}")
+            print(f"Error during cleanup tasks: {e}")
 
         # Wait for next cleanup cycle
         await asyncio.sleep(settings.CLEANUP_INTERVAL_MINUTES * 60)
+
+
+async def get_chats_service(db):
+    """Helper function to get ChatService instance"""
+    from app.services.chats import ChatService
+    return ChatService(db)
 
 
 async def start_cleanup_task():

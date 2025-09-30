@@ -3,6 +3,7 @@ OpenRouter service with business logic and API integration
 """
 
 import httpx
+import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional, List, Dict, Any
@@ -23,7 +24,11 @@ class OpenRouterService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.client = httpx.AsyncClient(timeout=30.0)
+        # Create HTTP client with settings that ensure no state persistence between requests
+        self.client = httpx.AsyncClient(
+            timeout=30.0,
+            follow_redirects=False,  # Disable redirects to prevent state issues
+        )
 
     async def get_settings(self) -> Optional[OpenRouterSettings]:
         """Get OpenRouter settings (returns first record or None)"""
@@ -166,23 +171,27 @@ class OpenRouterService:
         except Exception:
             return False
 
-    async def check_message_content(self, message_text: str) -> bool:
+    async def check_message_content(self, message_text: str) -> Dict[str, Any]:
         """
         Check if message contains prohibited content using OpenRouter AI
-        Returns True if content is prohibited, False otherwise
+        Returns dict with 'violates' (bool) and 'description' (str) fields
+
+        IMPORTANT: Each call to this method must be treated as a completely independent
+        conversation. No context or history should be maintained between calls.
+        Each request contains only the system prompt and the current message to check.
         """
         try:
             settings = await self.get_settings()
             if not settings or not settings.is_active:
                 print("OpenRouter settings not configured or inactive")
-                return False
+                return {"violates": False, "description": "OK"}
 
             if not settings.selected_model:
                 print("No model selected for OpenRouter")
-                return False
+                return {"violates": False, "description": "OK"}
 
             if not message_text or not message_text.strip():
-                return False
+                return {"violates": False, "description": "OK"}
 
             headers = {
                 "Authorization": f"Bearer {settings.api_key}",
@@ -214,6 +223,10 @@ Rules:
                 except (json.JSONDecodeError, KeyError):
                     system_prompt = settings.prompt
 
+            # Generate unique request ID to ensure complete independence
+            # This guarantees that each content check is treated as a separate conversation
+            request_id = str(uuid.uuid4())
+
             # Prepare the request payload
             payload = {
                 "model": settings.selected_model,
@@ -227,11 +240,14 @@ Rules:
                         "content": message_text.strip()
                     }
                 ],
-                "temperature": 0.1,  # Low temperature for consistent binary responses
-                "max_tokens": 10,    # Minimal tokens for "true"/"false" response
+                "temperature": 0.1,  # Low temperature for consistent responses
+                "max_tokens": 200,   # More tokens for JSON response with description
                 "top_p": 1,
                 "frequency_penalty": 0,
-                "presence_penalty": 0
+                "presence_penalty": 0,
+                "response_format": {"type": "json_object"},  # Force JSON response
+                "stream": False,     # Disable streaming for single responses
+                "user": f"content_check_{request_id}",  # Unique user identifier per request
             }
 
             response = await self.client.post(
@@ -243,29 +259,34 @@ Rules:
 
             if response.status_code != 200:
                 print(f"OpenRouter API error: {response.status_code} - {response.text}")
-                return False
+                return {"violates": False, "description": "OK"}
 
             response_data = response.json()
 
             # Extract the response content
             if "choices" in response_data and len(response_data["choices"]) > 0:
-                content = response_data["choices"][0].get("message", {}).get("content", "").strip().lower()
+                content = response_data["choices"][0].get("message", {}).get("content", "").strip()
 
-                # Check for explicit true/false responses
-                if content == "true":
-                    return True
-                elif content == "false":
-                    return False
-                else:
-                    print(f"Unexpected AI response: {content}")
-                    return False
+                try:
+                    # Parse JSON response from AI
+                    ai_response = json.loads(content)
+
+                    # Extract violates and description fields
+                    violates = ai_response.get("violates", False)
+                    description = ai_response.get("description", "OK")
+
+                    return {"violates": violates, "description": description}
+
+                except json.JSONDecodeError as e:
+                    print(f"Failed to parse AI response as JSON: {content}, error: {e}")
+                    return {"violates": False, "description": "OK"}
             else:
                 print(f"Invalid response structure from OpenRouter: {response_data}")
-                return False
+                return {"violates": False, "description": "OK"}
 
         except Exception as e:
             print(f"Error checking message content with OpenRouter: {str(e)}")
-            return False
+            return {"violates": False, "description": "OK"}
 
     async def close(self):
         """Close HTTP client"""

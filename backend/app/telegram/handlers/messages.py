@@ -245,7 +245,7 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
 
     # Check message content for prohibited material using AI (only if enabled and subscription is active)
     message_text = getattr(message, 'text', '') or getattr(message, 'caption', '') or ''
-    is_prohibited = False
+    content_check_result = {"violates": False, "description": "OK"}
 
     # Check if AI content check is enabled and subscription is active
     ai_check_available = False
@@ -263,9 +263,9 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
 
     if ai_check_available:
         try:
-            is_prohibited = await openrouter_service.check_message_content(message_text)
-            if is_prohibited:
-                print(f"Message {message.message_id} contains prohibited content according to AI check")
+            content_check_result = await openrouter_service.check_message_content(message_text)
+            if content_check_result["violates"]:
+                print(f"Message {message.message_id} contains prohibited content according to AI check: {content_check_result['description']}")
             else:
                 print(f"Message {message.message_id} passed AI content check")
         except Exception as e:
@@ -295,8 +295,12 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
         edited_info = MessageEditingMessages.MESSAGE_DELETED_HEADER
 
         # Add prohibited content warning if detected
-        if is_prohibited:
+        if content_check_result["violates"]:
             edited_info += MessageEditingMessages.PROHIBITED_CONTENT_WARNING
+            # Add violation description
+            edited_info += MessageEditingMessages.VIOLATION_DESCRIPTION_TEMPLATE.format(
+                description=content_check_result["description"]
+            )
 
         # Add chat name at the beginning
         edited_info += MessageEditingMessages.CHAT_INFO_TEMPLATE.format(

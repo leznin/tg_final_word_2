@@ -96,6 +96,7 @@ class MessageEditingMessages:
 
     MESSAGE_DELETED_HEADER = "🚫 <b>Сообщение удалено из чата</b>\n\n"
     PROHIBITED_CONTENT_WARNING = "⚠️ <b>ВНИМАНИЕ: Сообщение содержит запрещенный контент!</b>\n\n"
+    VIOLATION_DESCRIPTION_TEMPLATE = "🚫 <b>Причина:</b> {description}\n\n"
 
     CHAT_INFO_TEMPLATE = "💬 <b>Чат:</b> {chat_title}\n"
     AUTHOR_INFO_TEMPLATE = "👤 <b>Автор:</b> {user_name} (ID: {user_id})\n"

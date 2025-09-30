@@ -3,13 +3,19 @@ import { Key, Bot, DollarSign, FileText, Save, RefreshCw, AlertCircle, CheckCirc
 import { useOpenRouterSettings, useSaveOpenRouterSettings, useUpdateOpenRouterSettings, useOpenRouterModels, useOpenRouterBalance } from '../hooks/useOpenRouter';
 import { Loading } from '../components/ui/Loading';
 import { ModelSelector } from '../components/ModelSelector';
-import { OpenRouterModel, OpenRouterSettingsCreate, OpenRouterSettingsUpdate } from '../types';
+import { OpenRouterSettingsCreate, OpenRouterSettingsUpdate } from '../types';
 
 const EXAMPLE_PROMPT = JSON.stringify({
   "system_prompt": {
     "task": "Check messages for prohibited content according to Telegram rules",
     "input": "Message text",
-    "output": "true | false",
+    "output_format": {
+      "type": "json_only",
+      "schema": {
+        "violates": "boolean (true if message violates at least one rule, false otherwise)",
+        "description": "short string (one-line, max 120 characters) — a short description of the violation or 'OK' if there are no violations"
+      }
+    },
     "rules": [
       {
         "category": "Violence and Extremism",
@@ -64,7 +70,7 @@ const EXAMPLE_PROMPT = JSON.stringify({
         "description": "Calls for overthrowing the government, violating local jurisdiction laws."
       }
     ],
-    "instructions": "Respond strictly with 'true' if the message violates at least one rule, or 'false' if it does not. Do not provide explanations, categories, or reasoning."
+    "instructions": "Analyze EACH message as a separate one. If the message only discusses or mentions a topic (for example, news, jokes, a description of a movie, or a conversation about \"gray schemes\"), this is NOT a violation. A violation is recorded only if there is an explicit promotion, instruction, advertisement, or call to action. Return ONLY JSON with the keys `violates' (true/false) and `description'. If there is no violation — `violates: false` and `description: 'OK'."
   }
 }, null, 2);
 
@@ -368,13 +374,17 @@ export const OpenRouter: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-2">
                   Опционально. Будет использоваться как системное сообщение для всех запросов.
                 </p>
+                <p className="text-xs text-slate-600 mt-1">
+                  Для проверки контента сообщений промпт должен возвращать JSON: {"{violates: boolean, description: string}"}.
+                  Используйте кнопку "пример промпт" для загрузки готового шаблона.
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Error Display */}
-        {settingsError && settingsError.response?.status !== 404 && (
+        {settingsError && (settingsError as any).response?.status !== 404 && (
           <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
             <div className="flex items-center space-x-2">
               <AlertCircle className="h-5 w-5 text-red-500" />

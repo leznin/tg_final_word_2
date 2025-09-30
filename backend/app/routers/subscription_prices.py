@@ -73,3 +73,16 @@ async def deactivate_subscription_price(
         raise HTTPException(status_code=404, detail="Subscription price not found")
     return {"message": "Subscription price deactivated successfully"}
 
+
+@router.post("/cleanup-duplicates")
+async def cleanup_duplicate_prices(
+    db: AsyncSession = Depends(get_db)
+):
+    """Clean up duplicate active subscription prices, keeping only the most recent for each type"""
+    service = SubscriptionPricesService(db)
+    deactivated_count = await service.cleanup_duplicate_prices()
+    return {
+        "message": f"Cleaned up {deactivated_count} duplicate subscription prices",
+        "deactivated_count": deactivated_count
+    }
+

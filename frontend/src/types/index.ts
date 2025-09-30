@@ -1,3 +1,26 @@
+export interface ChatSubscription {
+  id: number;
+  subscription_type: 'month' | 'year';
+  price_stars: number;
+  currency: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  telegram_payment_charge_id?: string;
+  created_at: string;
+}
+
+export interface ChatSubscriptionCreate {
+  chat_id: number;
+  subscription_type: 'month' | 'year';
+  price_stars: number;
+  currency: string;
+  start_date: Date;
+  end_date: Date;
+  is_active?: boolean;
+  telegram_payment_charge_id?: string;
+}
+
 export interface Chat {
   id: number;
   telegram_chat_id: number;
@@ -20,6 +43,7 @@ export interface Chat {
   invite_link?: string;
   bot_permissions?: BotPermissions;
   last_info_update?: string;
+  active_subscription?: ChatSubscription;
 }
 
 export interface ChatDetail {
@@ -39,6 +63,7 @@ export interface ChatDetail {
   bot_permissions?: BotPermissions;
   last_info_update?: string;
   linked_channel?: LinkedChannelWithAdmin | null;
+  active_subscription?: ChatSubscription;
 }
 
 export interface Moderator {

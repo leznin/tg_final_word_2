@@ -8,7 +8,8 @@ from typing import List, Optional
 from app.models.chats import Chat
 from app.models.users import User
 from app.models.chat_moderators import ChatModerator
-from app.schemas.chats import ChatCreate, ChatUpdate, TelegramChatData, LinkedChannelInfo, ChatWithLinkedChannelResponse, ChannelWithAdmin
+from app.schemas.chats import ChatCreate, ChatUpdate, TelegramChatData, LinkedChannelInfo, ChatWithLinkedChannelResponse, ChannelWithAdmin, ChatSubscriptionInfo
+from app.services.chat_subscriptions import ChatSubscriptionsService
 
 
 class ChatService:
@@ -202,6 +203,23 @@ class ChatService:
                 chat_moderators_info.append(mod_info)
 
             chat_data.chat_moderators = chat_moderators_info
+
+            # Get active subscription for the chat
+            subscriptions_service = ChatSubscriptionsService(self.db)
+            active_subscription = await subscriptions_service.get_active_subscription_for_chat(chat.id)
+            if active_subscription:
+                subscription_info = ChatSubscriptionInfo(
+                    id=active_subscription.id,
+                    subscription_type=active_subscription.subscription_type,
+                    price_stars=active_subscription.price_stars,
+                    currency=active_subscription.currency,
+                    start_date=active_subscription.start_date.isoformat() if active_subscription.start_date else None,
+                    end_date=active_subscription.end_date.isoformat() if active_subscription.end_date else None,
+                    is_active=active_subscription.is_active,
+                    telegram_payment_charge_id=active_subscription.telegram_payment_charge_id,
+                    created_at=active_subscription.created_at.isoformat() if active_subscription.created_at else None
+                )
+                chat_data.active_subscription = subscription_info
 
             if chat.linked_channel_id:
                 # Get linked channel information

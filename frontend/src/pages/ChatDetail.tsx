@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Radio, Settings, Calendar, User, Link, Unlink, Plus, Trash2, Clock, MessageSquare, FileText, ExternalLink } from 'lucide-react';
-import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus } from '../hooks/useChats';
+import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { StatsCard } from '../components/ui/StatsCard';
 
@@ -10,6 +10,13 @@ export const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
   const { data, isLoading } = useChatDetail(chatId!);
   const [showChannelSelector, setShowChannelSelector] = useState(false);
+  const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
+  const [subscriptionForm, setSubscriptionForm] = useState({
+    subscription_type: 'month' as 'month' | 'year',
+    price_stars: 1,
+    currency: 'XTR',
+    end_date: ''
+  });
 
   // Hooks for channel linking
   const { data: availableChannels } = useAvailableChannels(data?.chat.admin_user_id || 0);
@@ -25,6 +32,10 @@ export const ChatDetail: React.FC = () => {
 
   // Hook for chat subscription status
   const { data: subscriptionStatus } = useChatSubscriptionStatus(chatId!);
+
+  // Hooks for subscription management
+  const createSubscriptionMutation = useCreateChatSubscription();
+  const deactivateSubscriptionMutation = useDeactivateChatSubscription();
 
   if (isLoading) return <Loading />;
   if (!data) return <div>Чат не найден</div>;
@@ -55,6 +66,45 @@ export const ChatDetail: React.FC = () => {
       } catch (error) {
         console.error('Failed to remove moderator:', error);
         alert('Не удалось удалить модератора');
+      }
+    }
+  };
+
+  const handleCreateSubscription = async () => {
+    try {
+      const subscriptionData = {
+        chat_id: chat.id,
+        subscription_type: subscriptionForm.subscription_type,
+        price_stars: subscriptionForm.price_stars,
+        currency: subscriptionForm.currency,
+        start_date: new Date(),
+        end_date: new Date(subscriptionForm.end_date),
+        is_active: true
+      };
+
+      await createSubscriptionMutation.mutateAsync(subscriptionData);
+      setShowSubscriptionForm(false);
+      setSubscriptionForm({
+        subscription_type: 'month',
+        price_stars: 1,
+        currency: 'XTR',
+        end_date: ''
+      });
+      alert('Подписка успешно создана!');
+    } catch (error) {
+      console.error('Failed to create subscription:', error);
+      alert('Не удалось создать подписку');
+    }
+  };
+
+  const handleDeactivateSubscription = async (subscriptionId: number) => {
+    if (window.confirm('Вы уверены, что хотите деактивировать эту подписку?')) {
+      try {
+        await deactivateSubscriptionMutation.mutateAsync(subscriptionId);
+        alert('Подписка успешно деактивирована!');
+      } catch (error) {
+        console.error('Failed to deactivate subscription:', error);
+        alert('Не удалось деактивировать подписку');
       }
     }
   };
@@ -184,6 +234,138 @@ export const ChatDetail: React.FC = () => {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Управление подпиской */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <Settings className="h-5 w-5 mr-2 text-green-500" />
+          Управление подпиской
+        </h2>
+        <div className="space-y-4">
+          {chat.active_subscription ? (
+            <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 rounded-full bg-green-500"></div>
+                  <div>
+                    <div className="font-medium text-gray-900">Подписка активна</div>
+                    <div className="text-sm text-gray-500">
+                      {chat.active_subscription.subscription_type === 'month' ? 'Месячная' : 'Годовая'} подписка
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDeactivateSubscription(chat.active_subscription!.id)}
+                  disabled={deactivateSubscriptionMutation.isPending}
+                  className="px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                >
+                  Деактивировать
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <div className="text-gray-600">Стоимость:</div>
+                  <div className="font-medium">{chat.active_subscription.price_stars} ⭐</div>
+                </div>
+                <div>
+                  <div className="text-gray-600">Начало:</div>
+                  <div className="font-medium">{new Date(chat.active_subscription.start_date).toLocaleDateString('ru-RU')}</div>
+                </div>
+                <div>
+                  <div className="text-gray-600">Окончание:</div>
+                  <div className={`font-medium ${new Date(chat.active_subscription.end_date) < new Date() ? 'text-red-600' : 'text-green-600'}`}>
+                    {new Date(chat.active_subscription.end_date).toLocaleDateString('ru-RU')}
+                    {new Date(chat.active_subscription.end_date) < new Date() && (
+                      <span className="ml-2 text-red-600">(истекла)</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 rounded-full bg-gray-400"></div>
+                  <div>
+                    <div className="font-medium text-gray-900">Нет активной подписки</div>
+                    <div className="text-sm text-gray-500">Чат не имеет платной подписки</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSubscriptionForm(!showSubscriptionForm)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                >
+                  <Plus className="h-4 w-4 inline mr-2" />
+                  Создать подписку
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showSubscriptionForm && (
+            <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Создать новую подписку</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Тип подписки</label>
+                  <select
+                    value={subscriptionForm.subscription_type}
+                    onChange={(e) => setSubscriptionForm(prev => ({
+                      ...prev,
+                      subscription_type: e.target.value as 'month' | 'year'
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="month">Месячная</option>
+                    <option value="year">Годовая</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Стоимость (⭐)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={subscriptionForm.price_stars}
+                    onChange={(e) => setSubscriptionForm(prev => ({
+                      ...prev,
+                      price_stars: parseInt(e.target.value) || 1
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Дата окончания</label>
+                  <input
+                    type="datetime-local"
+                    value={subscriptionForm.end_date}
+                    onChange={(e) => setSubscriptionForm(prev => ({
+                      ...prev,
+                      end_date: e.target.value
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-4">
+                <button
+                  onClick={() => setShowSubscriptionForm(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleCreateSubscription}
+                  disabled={createSubscriptionMutation.isPending || !subscriptionForm.end_date}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  {createSubscriptionMutation.isPending ? 'Создание...' : 'Создать подписку'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

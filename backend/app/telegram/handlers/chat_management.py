@@ -33,6 +33,23 @@ from app.telegram.utils.constants import (
 chat_management_router = Router()
 
 
+async def format_subscription_info(chat_id: int, db: AsyncSession) -> str:
+    """
+    Helper function to format subscription information for display
+    Returns empty string if no active subscription
+    """
+    from app.services.chat_subscriptions import ChatSubscriptionsService
+    subscriptions_service = ChatSubscriptionsService(db)
+    active_subscription = await subscriptions_service.get_active_subscription_for_chat(chat_id)
+
+    if active_subscription:
+        end_date = active_subscription.end_date.strftime("%d.%m.%Y %H:%M")
+        subscription_type_text = "месяц" if active_subscription.subscription_type == "month" else "год"
+        return f"\n\n💳 <b>Подписка:</b> AI проверка ({subscription_type_text})\n📅 <b>Действительна до:</b> {end_date}"
+
+    return ""
+
+
 # Removed /chats command handler - now using buttons only
 
 @chat_management_router.callback_query(F.data == "manage_chats")
@@ -105,12 +122,16 @@ async def handle_chat_selection(
     if linked_channel:
         # If already linked, show info and option to unlink or continue
         keyboard = get_chat_actions_keyboard(chat, linked_channel)
+
         response_text = ChatManagementMessages.SELECTED_CHAT_TEMPLATE.format(
             chat_title=chat.title or ButtonTexts.UNTITLED_CHAT,
             channel_title=linked_channel.title or ButtonTexts.UNTITLED_CHAT
         )
         if linked_channel.username:
             response_text += f" (@{linked_channel.username})"
+
+        # Add subscription information if active
+        response_text += await format_subscription_info(chat.id, db)
 
         response_text += ChatManagementMessages.SELECT_ACTION
 
@@ -245,6 +266,9 @@ async def handle_cancel_unlink(
             response_text += f"🔗 Уже связан с каналом: <b>{linked_channel.title or ButtonTexts.UNTITLED_CHAT}</b>"
             if linked_channel.username:
                 response_text += f" (@{linked_channel.username})"
+
+            # Add subscription information if active
+            response_text += await format_subscription_info(chat.id, db)
 
             response_text += "\n\n" + ChatManagementMessages.SELECT_ACTION
 
@@ -470,6 +494,11 @@ async def handle_timeout_option_selection(
         response_text += f"🔗 Уже связан с каналом: <b>{linked_channel.title or ButtonTexts.UNTITLED_CHAT}</b>" if linked_channel else ChatManagementMessages.SELECTED_CHAT_NO_CHANNEL
         if linked_channel and linked_channel.username:
             response_text += f" (@{linked_channel.username})"
+
+        # Add subscription information if active
+        if linked_channel:  # Only check subscription if there's a linked channel
+            response_text += await format_subscription_info(chat.id, db)
+
         response_text += f"\n\n{success_message}\n\n" + ChatManagementMessages.SELECT_ACTION
 
         await callback.message.edit_text(
@@ -506,6 +535,10 @@ async def handle_back_to_chat_actions(
         response_text += f"🔗 Уже связан с каналом: <b>{linked_channel.title or ButtonTexts.UNTITLED_CHAT}</b>" if linked_channel else ChatManagementMessages.SELECTED_CHAT_NO_CHANNEL
         if linked_channel and linked_channel.username:
             response_text += f" (@{linked_channel.username})"
+
+        # Add subscription information if active
+        if linked_channel:  # Only check subscription if there's a linked channel
+            response_text += await format_subscription_info(chat.id, db)
 
         response_text += "\n\n" + ChatManagementMessages.SELECT_ACTION
 
@@ -590,6 +623,11 @@ async def handle_custom_timeout_input(
             )
             if linked_channel and linked_channel.username:
                 response_text += f" (@{linked_channel.username})"
+
+            # Add subscription information if active
+            if linked_channel:  # Only check subscription if there's a linked channel
+                response_text += await format_subscription_info(chat.id, db)
+
             response_text += f"\n\n{success_message}" + ChatManagementMessages.SELECT_ACTION
 
             await message.reply(
@@ -1050,6 +1088,11 @@ async def handle_ai_check_option_selection(
         )
         if linked_channel and linked_channel.username:
             response_text += f" (@{linked_channel.username})"
+
+        # Add subscription information if active
+        if linked_channel:  # Only check subscription if there's a linked channel
+            response_text += await format_subscription_info(chat.id, db)
+
         response_text += f"\n\n{success_message}\n\n" + ChatManagementMessages.SELECT_ACTION
 
         await callback.message.edit_text(

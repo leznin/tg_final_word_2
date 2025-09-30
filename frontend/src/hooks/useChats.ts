@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../utils/api';
-import { Chat, ChatDetailResponse, LinkChannelRequest, LinkChannelResponse, ChatModerator, AddModeratorRequest, ModeratorResponse } from '../types';
+import { Chat, ChatDetailResponse, LinkChannelResponse, ChatModerator, AddModeratorRequest, ModeratorResponse, ChatSubscription, ChatSubscriptionCreate } from '../types';
 
 export const useChats = () => {
   return useQuery({
@@ -170,5 +170,38 @@ export const useChatSubscriptionStatus = (chatId: string) => {
       return response.data;
     },
     enabled: !!chatId,
+  });
+};
+
+export const useCreateChatSubscription = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (subscriptionData: ChatSubscriptionCreate): Promise<ChatSubscription> => {
+      const response = await api.post('/chat-subscriptions/', subscriptionData);
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['chats'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-subscription-status'] });
+    },
+  });
+};
+
+export const useDeactivateChatSubscription = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (subscriptionId: number): Promise<void> => {
+      await api.delete(`/chat-subscriptions/${subscriptionId}`);
+    },
+    onSuccess: () => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['chats'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-subscription-status'] });
+    },
   });
 };

@@ -8,8 +8,9 @@ from sqlalchemy import select, func
 from typing import List
 
 from app.core.database import get_db
-from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelRequest, ChatWithLinkedChannelResponse
+from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelRequest, ChatWithLinkedChannelResponse, ChatSubscriptionInfo
 from app.services.chats import ChatService
+from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.models.chats import Chat
 
 router = APIRouter()
@@ -153,6 +154,23 @@ async def get_chat(
                 "admin_name": f"{admin.first_name or ''} {admin.last_name or ''}".strip() if admin else None
             }
 
+    # Get active subscription for the chat
+    subscriptions_service = ChatSubscriptionsService(db)
+    active_subscription = await subscriptions_service.get_active_subscription_for_chat(actual_chat_id)
+    subscription_data = None
+    if active_subscription:
+        subscription_data = ChatSubscriptionInfo(
+            id=active_subscription.id,
+            subscription_type=active_subscription.subscription_type,
+            price_stars=active_subscription.price_stars,
+            currency=active_subscription.currency,
+            start_date=active_subscription.start_date.isoformat() if active_subscription.start_date else None,
+            end_date=active_subscription.end_date.isoformat() if active_subscription.end_date else None,
+            is_active=active_subscription.is_active,
+            telegram_payment_charge_id=active_subscription.telegram_payment_charge_id,
+            created_at=active_subscription.created_at.isoformat() if active_subscription.created_at else None
+        )
+
     # Format chat data to match ChatDetail interface
     chat_data = {
         "id": chat.id,
@@ -170,7 +188,8 @@ async def get_chat(
         "invite_link": chat.invite_link,
         "bot_permissions": chat.bot_permissions,
         "last_info_update": chat.last_info_update.isoformat() if chat.last_info_update else None,
-        "linked_channel": linked_channel_data
+        "linked_channel": linked_channel_data,
+        "active_subscription": subscription_data
     }
 
     return {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Hash, Radio, Users, Clock, User, Calendar, Shield, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Hash, Radio, Users, Clock, User, Calendar, Shield, ShieldCheck, Star, AlertTriangle } from 'lucide-react';
 import { Chat } from '../../types';
 
 interface ChatCardProps {
@@ -89,6 +89,39 @@ export const ChatCard: React.FC<ChatCardProps> = ({ chat, onClick }) => {
                 <span className="text-purple-600 ml-1">@{chat.linked_channel_info.admin_username}</span>
               )}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Info */}
+      {chat.active_subscription && (
+        <div className="p-2.5 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200 flex-shrink-0">
+          <div className="flex items-center space-x-2 mb-1.5">
+            <Star className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+            <span className="text-xs font-medium text-green-900">Подписка</span>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-green-800">Тип:</span>
+              <span className="text-xs font-medium text-green-900 capitalize">
+                {chat.active_subscription.subscription_type === 'month' ? 'Месяц' : 'Год'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-green-800">Стоимость:</span>
+              <span className="text-xs font-medium text-green-900 flex items-center">
+                {chat.active_subscription.price_stars} <Star className="h-3 w-3 ml-1 text-yellow-500" />
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-green-800">Истекает:</span>
+              <span className={`text-xs font-medium ${new Date(chat.active_subscription.end_date) < new Date() ? 'text-red-600' : 'text-green-900'}`}>
+                {new Date(chat.active_subscription.end_date).toLocaleDateString('ru-RU')}
+                {new Date(chat.active_subscription.end_date) < new Date() && (
+                  <AlertTriangle className="h-3 w-3 ml-1 inline text-red-600" />
+                )}
+              </span>
+            </div>
           </div>
         </div>
       )}

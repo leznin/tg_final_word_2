@@ -90,7 +90,21 @@ class ChannelWithAdmin(BaseModel):
     admin_name: Optional[str] = None
 
 
+class ChatSubscriptionInfo(BaseModel):
+    """Schema for chat subscription information"""
+    id: int
+    subscription_type: str
+    price_stars: int
+    currency: str
+    start_date: str
+    end_date: str
+    is_active: bool
+    telegram_payment_charge_id: Optional[str] = None
+    created_at: str
+
+
 class ChatWithLinkedChannelResponse(ChatResponse):
     """Schema for chat response with linked channel information and chat moderators"""
     linked_channel_info: Optional[ChannelWithAdmin] = None
     chat_moderators: List[dict] = []  # List of chat moderator info
+    active_subscription: Optional[ChatSubscriptionInfo] = None

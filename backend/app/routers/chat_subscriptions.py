@@ -8,7 +8,7 @@ from typing import List
 
 from app.core.database import get_db
 from app.services.chat_subscriptions import ChatSubscriptionsService
-from app.schemas.chat_subscriptions import ChatSubscriptionResponse, ChatSubscriptionWithChatInfo
+from app.schemas.chat_subscriptions import ChatSubscriptionResponse, ChatSubscriptionWithChatInfo, ChatSubscriptionCreate
 
 
 router = APIRouter()
@@ -63,6 +63,16 @@ async def get_chat_subscription(
     if not subscription:
         raise HTTPException(status_code=404, detail="Chat subscription not found")
     return subscription
+
+
+@router.post("/", response_model=ChatSubscriptionResponse)
+async def create_chat_subscription(
+    subscription: ChatSubscriptionCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new chat subscription manually"""
+    service = ChatSubscriptionsService(db)
+    return await service.create_subscription(subscription)
 
 
 @router.delete("/{subscription_id}")

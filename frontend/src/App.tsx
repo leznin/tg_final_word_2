@@ -9,7 +9,7 @@ import { UsersChats } from './pages/UsersChats';
 import { Moderators } from './pages/Moderators';
 import { ChatDetail } from './pages/ChatDetail';
 import { OpenRouter } from './pages/OpenRouter';
-import { SubscriptionPrices } from './pages/SubscriptionPrices';
+import { AIModerationPayments } from './pages/AIModerationPayments';
 import { Login } from './pages/Login';
 
 const queryClient = new QueryClient({
@@ -45,8 +45,8 @@ function App() {
             <Route path="chats/:chatId" element={<ChatDetail />} />
             <Route path="users-chats" element={<UsersChats />} />
             <Route path="moderators" element={<Moderators />} />
+            <Route path="ai-moderation-payments" element={<AIModerationPayments />} />
             <Route path="openrouter" element={<OpenRouter />} />
-            <Route path="subscription-prices" element={<SubscriptionPrices />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

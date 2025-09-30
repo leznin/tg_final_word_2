@@ -81,15 +81,16 @@ export const Dashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/subscription-prices')}
+            onClick={() => navigate('/ai-moderation-payments')}
             className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
           >
             <div className="flex items-center space-x-3">
               <Star className="h-5 w-5 text-yellow-500" />
-              <span className="font-medium">Цены подписок</span>
+              <span className="font-medium">AI Модерация</span>
             </div>
             <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
           </button>
+
         </div>
       </div>
     </div>

@@ -99,6 +99,10 @@ class MessageEditingMessages:
 
     CHAT_INFO_TEMPLATE = "💬 <b>Чат:</b> {chat_title}\n"
     AUTHOR_INFO_TEMPLATE = "👤 <b>Автор:</b> {user_name} (ID: {user_id})\n"
+    USERNAME_TEMPLATE = "📱 <b>Username:</b> @{username}\n"
+    FULL_NAME_TEMPLATE = "👤 <b>Полное имя:</b> {full_name}\n"
+    LANGUAGE_TEMPLATE = "🌍 <b>Язык:</b> {language}\n"
+    PREMIUM_TEMPLATE = "⭐ <b>Premium:</b> {premium_status}\n"
     MESSAGE_ID_TEMPLATE = "🆔 <b>ID сообщения:</b> {message_id}\n"
     CREATION_TIME_TEMPLATE = "📅 <b>Время написания:</b> {created_time}\n"
     EDIT_TIME_TEMPLATE = "📝 <b>Время редактирования:</b> {edit_time}\n"

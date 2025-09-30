@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from app.services.chats import ChatService
 from app.services.messages import MessageService
+from app.services.chat_members import ChatMemberService
 from app.services.openrouter import OpenRouterService
 from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.telegram.services.chat_linking import ChatLinkingService
@@ -132,6 +133,7 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
 
     chat_service = ChatService(db)
     message_service = MessageService(db)
+    chat_member_service = ChatMemberService(db)
     moderator_service = ModeratorManagementService(db)
     openrouter_service = OpenRouterService(db)
     subscriptions_service = ChatSubscriptionsService(db)
@@ -308,6 +310,38 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
             edited_info += MessageEditingMessages.AUTHOR_INFO_TEMPLATE.format(
                 user_name=user_name, user_id=user_id
             )
+
+            # Get detailed user information from chat_members table
+            chat_member = await chat_member_service.get_chat_member_by_telegram_id(chat.id, user_id)
+            if chat_member:
+                # Add username if available
+                if chat_member.username:
+                    edited_info += MessageEditingMessages.USERNAME_TEMPLATE.format(
+                        username=chat_member.username
+                    )
+
+                # Add full name details
+                full_name_parts = []
+                if chat_member.first_name:
+                    full_name_parts.append(chat_member.first_name)
+                if chat_member.last_name:
+                    full_name_parts.append(chat_member.last_name)
+                if full_name_parts:
+                    edited_info += MessageEditingMessages.FULL_NAME_TEMPLATE.format(
+                        full_name=" ".join(full_name_parts)
+                    )
+
+                # Add language if available
+                if chat_member.language_code:
+                    edited_info += MessageEditingMessages.LANGUAGE_TEMPLATE.format(
+                        language=chat_member.language_code.upper()
+                    )
+
+                # Add premium status
+                premium_status = "Да" if chat_member.is_premium else "Нет"
+                edited_info += MessageEditingMessages.PREMIUM_TEMPLATE.format(
+                    premium_status=premium_status
+                )
 
         # Add message ID
         edited_info += MessageEditingMessages.MESSAGE_ID_TEMPLATE.format(

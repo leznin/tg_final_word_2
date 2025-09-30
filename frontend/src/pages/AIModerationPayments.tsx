@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Calculator, DollarSign, Star, Percent, Zap, Edit, Plus, Save, X, TrendingUp, Calendar, Settings } from 'lucide-react';
 import { useSubscriptionPrices } from '../hooks/useSubscriptionPrices';
 import { Loading } from '../components/ui/Loading';
-import { CurrencyConverter } from '../components/ui/CurrencyConverter';
 
 interface SubscriptionPrice {
   id: number;
@@ -119,21 +118,80 @@ export const AIModerationPayments: React.FC = () => {
     }
   };
 
-  const updateCalculatedPrice = () => {
-    if (!yearPrice && calculatedYearlyPrice > 0) {
-      // Auto-create yearly price
-      setNewPriceData({
-        subscription_type: 'year',
-        price_stars: calculatedYearlyPrice,
-        currency: 'XTR'
-      });
-      createNewPrice();
-    } else if (yearPrice && calculatedYearlyPrice !== yearPrice.price_stars) {
-      // Update existing yearly price
-      setEditing({ type: 'year', value: calculatedYearlyPrice });
-      savePrice();
+  const updateCalculatedPrice = async () => {
+    try {
+      // Update monthly price if it has changed
+      if (monthPrice && calculator.monthlyPrice !== monthPrice.price_stars) {
+        const response = await fetch(`/api/subscription-prices/${monthPrice.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            price_stars: calculator.monthlyPrice,
+            subscription_type: 'month',
+            currency: 'XTR'
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update monthly price');
+        }
+      } else if (!monthPrice && calculator.monthlyPrice > 0) {
+        // Create monthly price if it doesn't exist
+        const response = await fetch('/api/subscription-prices/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription_type: 'month',
+            price_stars: calculator.monthlyPrice,
+            currency: 'XTR'
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create monthly price');
+        }
+      }
+
+      // Update or create yearly price
+      if (yearPrice && calculatedYearlyPrice !== yearPrice.price_stars) {
+        const response = await fetch(`/api/subscription-prices/${yearPrice.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            price_stars: calculatedYearlyPrice,
+            subscription_type: 'year',
+            currency: 'XTR'
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update yearly price');
+        }
+      } else if (!yearPrice && calculatedYearlyPrice > 0) {
+        const response = await fetch('/api/subscription-prices/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription_type: 'year',
+            price_stars: calculatedYearlyPrice,
+            currency: 'XTR'
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create yearly price');
+        }
+      }
+
+      // Refresh data and show success message
+      refetch();
+      alert('Цены успешно обновлены!');
+    } catch (error) {
+      console.error('Error updating prices:', error);
+      alert('Ошибка при обновлении цен');
     }
   };
+
 
   if (isLoading) return <Loading />;
 
@@ -149,8 +207,8 @@ export const AIModerationPayments: React.FC = () => {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">AI Модерация контента</h1>
-            <p className="mt-2 text-sm text-gray-600">
+            <h1 className="text-3xl font-bold text-slate-900">AI Модерация контента</h1>
+            <p className="mt-2 text-sm text-slate-600">
               Управление ценами подписок и расчет оптимальных тарифов
             </p>
           </div>
@@ -166,6 +224,9 @@ export const AIModerationPayments: React.FC = () => {
           <Shield className="h-8 w-8 text-blue-600" />
         </div>
       </div>
+
+      {/* Main Content */}
+      <div className="space-y-6">
 
       {/* Current Prices Management */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -306,150 +367,145 @@ export const AIModerationPayments: React.FC = () => {
         </div>
       </div>
 
-      {/* Smart Price Calculator */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow duration-200">
-        <div className="flex items-center justify-between mb-6">
+      {/* Compact Calculator */}
+      <div className="bg-white/70 backdrop-blur-sm rounded-xl border border-white/20 p-4 hover:bg-white/90 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg">
-              <Calculator className="h-6 w-6 text-purple-600" />
+            <div className="p-2 bg-purple-100/80 rounded-lg">
+              <Calculator className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Умный калькулятор цен</h2>
-              <p className="text-sm text-gray-600">Автоматический расчет годовых тарифов</p>
+              <h2 className="text-lg font-semibold text-slate-900">Калькулятор цен</h2>
+              <p className="text-xs text-slate-600">Автоматический расчет тарифов</p>
             </div>
           </div>
           <button
             onClick={updateCalculatedPrice}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700 transition-colors"
+            className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
             disabled={!calculator.monthlyPrice || calculator.monthlyPrice <= 0}
           >
-            <Settings className="h-4 w-4 mr-2" />
-            Применить расчет
+            <Settings className="h-3 w-3 mr-1.5" />
+            Применить
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Calculator Inputs */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Месячная цена (базовая)
-              </label>
-              <div className="relative">
-                <Star className="absolute left-3 top-1/2 transform -translate-y-1/2 text-yellow-500 h-4 w-4" />
-                <input
-                  type="number"
-                  min="1"
-                  value={calculator.monthlyPrice}
-                  onChange={(e) => setCalculator(prev => ({
-                    ...prev,
-                    monthlyPrice: parseInt(e.target.value) || 0
-                  }))}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Введите месячную цену"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Скидка на год (%) - для привлечения клиентов
-              </label>
-              <div className="relative">
-                <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  value={calculator.yearlyDiscountPercent}
-                  onChange={(e) => setCalculator(prev => ({
-                    ...prev,
-                    yearlyDiscountPercent: parseInt(e.target.value) || 0
-                  }))}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Количество чатов
-              </label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Monthly Price Input */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-slate-700">
+              Месячная цена
+            </label>
+            <div className="relative">
+              <Star className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-amber-500 h-3.5 w-3.5" />
               <input
                 type="number"
                 min="1"
-                max="100"
-                value={calculator.quantity}
+                value={calculator.monthlyPrice}
                 onChange={(e) => setCalculator(prev => ({
                   ...prev,
-                  quantity: parseInt(e.target.value) || 1
+                  monthlyPrice: parseInt(e.target.value) || 0
                 }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50"
+                placeholder="0"
               />
             </div>
           </div>
 
-          {/* Calculator Results */}
-          <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
-              Расчетные цены
-            </h3>
-
-            <div className="space-y-4">
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Месячная подписка:</span>
-                  <span className="text-lg font-bold text-blue-600">{calculator.monthlyPrice} XTR</span>
-                </div>
-                <div className="text-xs text-gray-500">за 1 чат в месяц</div>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-green-200">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Годовая подписка:</span>
-                  <span className="text-lg font-bold text-green-600">{calculatedYearlyPrice} XTR</span>
-                </div>
-                <div className="text-xs text-green-600">
-                  Скидка {calculator.yearlyDiscountPercent}% = экономия {yearlySavings} XTR
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Итого за {calculator.quantity} чат(ов):</span>
-                  <span className="text-lg font-bold text-purple-600">{totalPrice} XTR</span>
-                </div>
-                <div className="text-xs text-purple-600">
-                  {calculator.quantity} × {calculator.monthlyPrice} XTR
-                </div>
-              </div>
-
-              {calculator.yearlyDiscountPercent > 0 && (
-                <div className="bg-green-100 rounded-lg p-3 border border-green-300">
-                  <div className="flex items-center text-green-800">
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    <span className="text-sm font-medium">
-                      Экономия при годовой подписке: {yearlySavings} XTR ({Math.round(yearlySavings / (calculator.monthlyPrice * 12) * 100)}%)
-                    </span>
-                  </div>
-                </div>
-              )}
+          {/* Discount Input */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-slate-700">
+              Скидка на год (%)
+            </label>
+            <div className="relative">
+              <Percent className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 h-3.5 w-3.5" />
+              <input
+                type="number"
+                min="0"
+                max="50"
+                value={calculator.yearlyDiscountPercent}
+                onChange={(e) => setCalculator(prev => ({
+                  ...prev,
+                  yearlyDiscountPercent: parseInt(e.target.value) || 0
+                }))}
+                className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white/50"
+              />
             </div>
+          </div>
+
+          {/* Quantity Input */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-slate-700">
+              Количество чатов
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={calculator.quantity}
+              onChange={(e) => setCalculator(prev => ({
+                ...prev,
+                quantity: parseInt(e.target.value) || 1
+              }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50"
+            />
+          </div>
+        </div>
+
+        {/* Results Row */}
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-blue-50/80 rounded-lg p-3 border border-blue-200/50">
+            <div className="text-xs text-blue-700 font-medium mb-1">Месяц</div>
+            <div className="text-lg font-bold text-blue-600">{calculator.monthlyPrice} XTR</div>
+            <div className="text-xs text-blue-600">за чат</div>
+          </div>
+
+          <div className="bg-emerald-50/80 rounded-lg p-3 border border-emerald-200/50">
+            <div className="text-xs text-emerald-700 font-medium mb-1">Год</div>
+            <div className="text-lg font-bold text-emerald-600">{calculatedYearlyPrice} XTR</div>
+            <div className="text-xs text-emerald-600">
+              -{calculator.yearlyDiscountPercent}% ({yearlySavings} XTR)
+            </div>
+          </div>
+
+          <div className="bg-purple-50/80 rounded-lg p-3 border border-purple-200/50">
+            <div className="text-xs text-purple-700 font-medium mb-1">Итого</div>
+            <div className="text-lg font-bold text-purple-600">{totalPrice} XTR</div>
+            <div className="text-xs text-purple-600">
+              {calculator.quantity} × {calculator.monthlyPrice}
+            </div>
+          </div>
+        </div>
+
+        {/* Currency Converter Section */}
+        <div className="mt-4 pt-4 border-t border-slate-200/50">
+          <div className="flex items-center space-x-2 mb-3">
+            <DollarSign className="h-4 w-4 text-emerald-600" />
+            <span className="text-sm font-medium text-slate-700">Конвертер валют</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white/50 rounded-lg p-2 border border-slate-200/50 text-center">
+              <div className="text-xs text-slate-500">XTR</div>
+              <div className="text-sm font-semibold text-slate-900">{totalPrice}</div>
+            </div>
+            <div className="bg-white/50 rounded-lg p-2 border border-slate-200/50 text-center">
+              <div className="text-xs text-slate-500">USDT</div>
+              <div className="text-sm font-semibold text-emerald-600">
+                ≈{(totalPrice * 0.0188).toFixed(2)}
+              </div>
+            </div>
+            <div className="bg-white/50 rounded-lg p-2 border border-slate-200/50 text-center">
+              <div className="text-xs text-slate-500">RUB</div>
+              <div className="text-sm font-semibold text-blue-600">
+                ≈{Math.round(totalPrice * 0.0188 * 90)}
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-slate-500 text-center">
+            1 XTR ≈ 0.0188 USD ≈ 1.69 ₽
           </div>
         </div>
       </div>
 
-      {/* Currency Converter */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow duration-200">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="p-2 bg-gradient-to-br from-green-100 to-green-200 rounded-lg">
-            <DollarSign className="h-6 w-6 text-green-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900">Конвертер в USDT</h2>
-        </div>
-
-        <CurrencyConverter starsAmount={totalPrice} />
       </div>
 
       {/* Add New Price Form */}
@@ -544,125 +600,6 @@ export const AIModerationPayments: React.FC = () => {
           </form>
         </div>
       )}
-
-      {/* All Prices List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <Settings className="h-6 w-6 mr-3 text-gray-600" />
-              Все цены подписок
-            </h2>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Добавить
-            </button>
-          </div>
-
-          {prices && prices.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {prices.map((price) => (
-                <div
-                  key={price.id}
-                  className={`border rounded-lg p-4 ${
-                    price.is_active ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-3 h-3 rounded-full ${
-                        price.is_active ? 'bg-green-500' : 'bg-gray-400'
-                      }`} />
-                      <span className={`text-sm font-medium ${
-                        price.is_active ? 'text-green-800' : 'text-gray-600'
-                      }`}>
-                        {price.is_active ? 'Активна' : 'Неактивна'}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={() => {
-                          const newStatus = !price.is_active;
-                          fetch(`/api/subscription-prices/${price.id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ is_active: newStatus }),
-                          }).then(() => refetch());
-                        }}
-                        className={`p-1 rounded ${
-                          price.is_active
-                            ? 'text-red-600 hover:bg-red-50'
-                            : 'text-green-600 hover:bg-green-50'
-                        }`}
-                        title={price.is_active ? 'Деактивировать' : 'Активировать'}
-                      >
-                        {price.is_active ? '⏸️' : '▶️'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm('Удалить эту цену подписки?')) {
-                            fetch(`/api/subscription-prices/${price.id}`, {
-                              method: 'DELETE',
-                            }).then(() => refetch());
-                          }
-                        }}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded"
-                        title="Удалить"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      {price.subscription_type === 'month' ? (
-                        <Calendar className="h-4 w-4 text-blue-500" />
-                      ) : (
-                        <TrendingUp className="h-4 w-4 text-green-500" />
-                      )}
-                      <span className="text-sm font-medium text-gray-900">
-                        {price.subscription_type === 'month' ? 'Месячная подписка' : 'Годовая подписка'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Star className="h-4 w-4 text-yellow-500" />
-                      <span className="text-lg font-bold text-gray-900">
-                        {price.price_stars} {price.currency}
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-gray-500">
-                      Создано: {new Date(price.created_at).toLocaleDateString('ru-RU')}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <DollarSign className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Цены подписок не настроены
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Добавьте цены для месячных и годовых подписок на AI проверку контента
-              </p>
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Добавить первую цену
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Info Section */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-6">

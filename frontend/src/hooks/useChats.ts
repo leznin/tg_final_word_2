@@ -161,3 +161,14 @@ export const useChatMembers = (chatId: string, skip: number = 0, limit: number =
     enabled: !!chatId,
   });
 };
+
+export const useChatSubscriptionStatus = (chatId: string) => {
+  return useQuery({
+    queryKey: ['chat-subscription-status', chatId],
+    queryFn: async () => {
+      const response = await api.get(`/chat-subscriptions/chat/${chatId}/active`);
+      return response.data;
+    },
+    enabled: !!chatId,
+  });
+};

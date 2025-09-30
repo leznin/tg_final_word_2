@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from app.services.chats import ChatService
 from app.services.messages import MessageService
 from app.services.openrouter import OpenRouterService
+from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.telegram.services.chat_linking import ChatLinkingService
 from app.telegram.services.moderator_management import ModeratorManagementService
 from app.telegram.states import ChatManagementStates
@@ -133,6 +134,7 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
     message_service = MessageService(db)
     moderator_service = ModeratorManagementService(db)
     openrouter_service = OpenRouterService(db)
+    subscriptions_service = ChatSubscriptionsService(db)
 
     # Get the chat from database
     chat = await chat_service.get_chat_by_telegram_id(message.chat.id)
@@ -239,11 +241,24 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
 
     print(f"Message {message.message_id} from chat {chat.id} has changes, processing deletion and notification")
 
-    # Check message content for prohibited material using AI (only if enabled for this chat)
+    # Check message content for prohibited material using AI (only if enabled and subscription is active)
     message_text = getattr(message, 'text', '') or getattr(message, 'caption', '') or ''
     is_prohibited = False
 
+    # Check if AI content check is enabled and subscription is active
+    ai_check_available = False
     if chat.ai_content_check_enabled and message_text.strip():
+        # Check if chat has active subscription for AI content check
+        has_active_subscription = await subscriptions_service.has_active_subscription(chat.id)
+        if has_active_subscription:
+            ai_check_available = True
+        else:
+            print(f"AI content check subscription expired or not found for chat {chat.id}")
+            # Optionally disable AI check for this chat if subscription expired
+            # chat.ai_content_check_enabled = False
+            # await db.commit()
+
+    if ai_check_available:
         try:
             is_prohibited = await openrouter_service.check_message_content(message_text)
             if is_prohibited:
@@ -253,6 +268,8 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
         except Exception as e:
             print(f"Error checking message content with AI: {e}")
             # Continue with notification even if AI check fails
+    elif chat.ai_content_check_enabled and not ai_check_available:
+        print(f"AI content check enabled but no active subscription for chat {chat.id}")
     elif not chat.ai_content_check_enabled:
         print(f"AI content check is disabled for chat {chat.id}")
     else:

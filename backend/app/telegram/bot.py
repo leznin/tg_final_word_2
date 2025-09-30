@@ -14,6 +14,7 @@ from app.telegram.middlewares.bot import BotMiddleware
 from app.telegram.handlers.start import start_router, member_router
 from app.telegram.handlers.messages import message_router
 from app.telegram.handlers.chat_management import chat_management_router
+from app.telegram.handlers.payments import payment_router
 
 
 class TelegramBot:
@@ -45,7 +46,8 @@ class TelegramBot:
         self.dispatcher.update.middleware(DatabaseMiddleware())
         self.dispatcher.update.middleware(BotMiddleware(self.bot))
 
-        # Register handlers
+        # Register handlers (payment router first for successful_payment handling)
+        self.dispatcher.include_router(payment_router)
         self.dispatcher.include_router(start_router)
         self.dispatcher.include_router(member_router)
         self.dispatcher.include_router(message_router)
@@ -59,6 +61,11 @@ class TelegramBot:
             try:
                 await self.bot.set_webhook(
                     url=self.webhook_url,
+                    allowed_updates=[
+                        "message", "edited_message", "callback_query",
+                        "pre_checkout_query", "successful_payment",
+                        "my_chat_member", "chat_member"
+                    ],
                     drop_pending_updates=True
                 )
                 break  # Success, exit retry loop
@@ -85,7 +92,19 @@ class TelegramBot:
     async def process_webhook(self, webhook_data: dict):
         """Process incoming webhook data"""
         if not self.dispatcher or not self.bot:
+            print("❌ Dispatcher or bot not initialized")
             return
+
+        print(f"🔄 WEBHOOK RECEIVED: {webhook_data.get('update_id', 'unknown')}")
+        if 'pre_checkout_query' in webhook_data:
+            print("💳 WEBHOOK CONTAINS PRE_CHECKOUT_QUERY")
+        if 'message' in webhook_data:
+            message = webhook_data['message']
+            if 'successful_payment' in message:
+                print("🎉 WEBHOOK CONTAINS SUCCESSFUL_PAYMENT MESSAGE")
+                print(f"   Payment data: {message['successful_payment']}")
+        if 'callback_query' in webhook_data:
+            print("🔘 WEBHOOK CONTAINS CALLBACK_QUERY")
 
         # Process update through aiogram
         from aiogram.types import Update

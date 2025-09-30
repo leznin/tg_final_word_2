@@ -133,6 +133,7 @@ async def telegram_webhook(request: Request):
     """Handle Telegram webhook"""
     bot = get_telegram_bot()
     if bot is None:
+        print("❌ Bot not initialized")
         return {"status": "bot not initialized"}
 
     try:
@@ -145,6 +146,7 @@ async def telegram_webhook(request: Request):
         return {"status": "processed"}
 
     except Exception as e:
+        print(f"❌ WEBHOOK ERROR: {e}")
         return {"status": "error", "message": str(e)}
 
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Radio, Settings, Calendar, User, Link, Unlink, Plus, Trash2, Clock, MessageSquare, FileText, ExternalLink } from 'lucide-react';
-import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers } from '../hooks/useChats';
+import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { StatsCard } from '../components/ui/StatsCard';
 
@@ -22,6 +22,9 @@ export const ChatDetail: React.FC = () => {
 
   // Hooks for chat members
   const { data: membersData, isLoading: membersLoading } = useChatMembers(chatId!);
+
+  // Hook for chat subscription status
+  const { data: subscriptionStatus } = useChatSubscriptionStatus(chatId!);
 
   if (isLoading) return <Loading />;
   if (!data) return <div>Чат не найден</div>;
@@ -110,9 +113,15 @@ export const ChatDetail: React.FC = () => {
                   Удаление: {chat.delete_messages_enabled ? 'Вкл' : 'Откл'}
                 </span>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  chat.ai_content_check_enabled ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                  (subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'bg-green-100 text-green-800' :
+                  (!subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-gray-100 text-gray-800'
                 }`}>
-                  AI проверка: {chat.ai_content_check_enabled ? 'Вкл' : 'Откл'}
+                  AI проверка: {
+                    (subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'Активна' :
+                    (!subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'Требуется оплата' :
+                    'Отключена'
+                  }
                 </span>
               </div>
             </div>
@@ -128,6 +137,53 @@ export const ChatDetail: React.FC = () => {
           {statsCards.map((stat, index) => (
             <StatsCard key={index} {...stat} />
           ))}
+        </div>
+      </div>
+
+      {/* Информация о подписке AI проверки */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <Settings className="h-5 w-5 mr-2 text-blue-500" />
+          AI проверка контента
+        </h2>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full ${
+                (subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'bg-green-500' :
+                (!subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'bg-yellow-500' :
+                'bg-gray-400'
+              }`} />
+              <div>
+                <div className="font-medium text-gray-900">
+                  {chat.ai_content_check_enabled ? 'Включена' : 'Отключена'}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {(subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'Подписка активна' :
+                   (!subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'Требуется оплата подписки' :
+                   'Функция отключена'}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              {subscriptionStatus?.has_active_subscription ? (
+                <div className="text-sm">
+                  <div className="text-green-600 font-medium">✅ Подписка активна</div>
+                  <div className="text-gray-500">Проверка сообщений работает</div>
+                </div>
+              ) : chat.ai_content_check_enabled ? (
+                <div className="text-sm">
+                  <div className="text-yellow-600 font-medium">⚠️ Требуется оплата</div>
+                  <div className="text-gray-500">Подписка истекла или не оплачена</div>
+                </div>
+              ) : (
+                <div className="text-sm">
+                  <div className="text-gray-600 font-medium">Отключена</div>
+                  <div className="text-gray-500">AI проверка не работает</div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

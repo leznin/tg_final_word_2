@@ -34,6 +34,8 @@ from app.models.messages import Message
 from app.models.auth_attempts import AuthAttempt
 from app.models.chat_moderators import ChatModerator
 from app.models.openrouter import OpenRouterSettings
+from app.models.subscription_prices import SubscriptionPrice
+from app.models.chat_subscriptions import ChatSubscription
 
 # Create async session factory
 async_session = async_sessionmaker(

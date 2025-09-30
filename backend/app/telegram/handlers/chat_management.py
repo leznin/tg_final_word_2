@@ -26,7 +26,7 @@ from app.telegram.keyboards.chat_management import (
 )
 from app.telegram.utils.constants import (
     StartMessages, ChatManagementMessages, ChannelLinkingMessages,
-    HelpMessages, ErrorMessages, ButtonTexts, MessageEditingMessages, ModeratorMessages
+    HelpMessages, ErrorMessages, ButtonTexts, MessageEditingMessages, ModeratorMessages, PaymentMessages
 )
 
 # Create router for chat management
@@ -920,15 +920,40 @@ async def handle_ai_content_check_settings(
         await state.clear()
         return
 
-    # Show current setting in the message
-    current_setting = HelpMessages.AI_CHECK_ENABLED if chat.ai_content_check_enabled else HelpMessages.AI_CHECK_DISABLED
+    # Check subscription status
+    from app.services.chat_subscriptions import ChatSubscriptionsService
+    subscriptions_service = ChatSubscriptionsService(db)
+    active_subscription = await subscriptions_service.get_active_subscription_for_chat(chat.id)
 
-    response_text = HelpMessages.AI_CONTENT_CHECK_SETTINGS_TEMPLATE.format(
-        chat_title=chat.title or ButtonTexts.UNTITLED_CHAT,
-        current_setting=current_setting
-    )
+    if active_subscription:
+        # Has active subscription - show current setting
+        current_setting = HelpMessages.AI_CHECK_ENABLED if chat.ai_content_check_enabled else HelpMessages.AI_CHECK_DISABLED
+        response_text = HelpMessages.AI_CONTENT_CHECK_SETTINGS_TEMPLATE.format(
+            chat_title=chat.title or ButtonTexts.UNTITLED_CHAT,
+            current_setting=current_setting
+        )
+        keyboard = get_ai_content_check_options_keyboard(chat.id, chat.ai_content_check_enabled)
+    else:
+        # No active subscription - show payment options
+        from app.services.subscription_prices import SubscriptionPricesService
+        prices_service = SubscriptionPricesService(db)
+        month_price = await prices_service.get_price_by_type('month')
+        year_price = await prices_service.get_price_by_type('year')
 
-    keyboard = get_ai_content_check_options_keyboard(chat.id, chat.ai_content_check_enabled)
+        prices_info = {}
+        if month_price:
+            prices_info['month'] = month_price.price_stars
+        if year_price:
+            prices_info['year'] = year_price.price_stars
+
+        if prices_info:
+            from app.telegram.keyboards.payment_keyboard import payment_options_keyboard
+            keyboard = payment_options_keyboard(chat.id, prices_info)
+            response_text = PaymentMessages.AI_CHECK_DISABLED_NO_SUBSCRIPTION
+        else:
+            # No prices configured
+            response_text = "❌ AI проверка контента недоступна.\n\nЦены подписок не настроены администратором."
+            keyboard = get_back_to_chat_actions_keyboard(chat.id)
     await callback.message.edit_text(
         response_text,
         reply_markup=keyboard,
@@ -967,6 +992,38 @@ async def handle_ai_check_option_selection(
 
     # Determine new setting
     if option == "enable":
+        # Check if subscription is active before enabling
+        from app.services.chat_subscriptions import ChatSubscriptionsService
+        subscriptions_service = ChatSubscriptionsService(db)
+        has_active_subscription = await subscriptions_service.has_active_subscription(chat_id)
+
+        if not has_active_subscription:
+            # No active subscription - show payment required message
+            from app.services.subscription_prices import SubscriptionPricesService
+            prices_service = SubscriptionPricesService(db)
+            month_price = await prices_service.get_price_by_type('month')
+            year_price = await prices_service.get_price_by_type('year')
+
+            prices_info = {}
+            if month_price:
+                prices_info['month'] = month_price.price_stars
+            if year_price:
+                prices_info['year'] = year_price.price_stars
+
+            if prices_info:
+                from app.telegram.keyboards.payment_keyboard import payment_options_keyboard
+                keyboard = payment_options_keyboard(chat_id, prices_info)
+                await callback.message.edit_text(
+                    PaymentMessages.AI_CHECK_DISABLED_NO_SUBSCRIPTION,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+            else:
+                await callback.message.edit_text(
+                    "❌ AI проверка контента недоступна.\n\nЦены подписок не настроены администратором."
+                )
+            return
+
         new_setting = True
         success_message = HelpMessages.AI_CHECK_ENABLED_SUCCESS
     elif option == "disable":

@@ -14,6 +14,7 @@ from app.services.openrouter import OpenRouterService
 from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.telegram.services.chat_linking import ChatLinkingService
 from app.telegram.services.moderator_management import ModeratorManagementService
+from app.utils.account_age import format_account_age
 from app.telegram.states import ChatManagementStates
 from app.telegram.keyboards.chat_management import get_cancel_keyboard, get_back_to_chats_keyboard
 from app.telegram.utils.constants import ChannelLinkingMessages, MessageEditingMessages, ButtonTexts
@@ -346,6 +347,13 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
                 edited_info += MessageEditingMessages.PREMIUM_TEMPLATE.format(
                     premium_status=premium_status
                 )
+
+                # Add account creation date if available
+                if chat_member.account_creation_date:
+                    creation_date = chat_member.account_creation_date.strftime('%d.%m.%Y')
+                    edited_info += MessageEditingMessages.ACCOUNT_CREATION_DATE_TEMPLATE.format(
+                        creation_date=creation_date
+                    )
 
         # Add message ID
         edited_info += MessageEditingMessages.MESSAGE_ID_TEMPLATE.format(

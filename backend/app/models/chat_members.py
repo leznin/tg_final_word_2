@@ -29,6 +29,9 @@ class ChatMember(Base):
     can_connect_to_business = Column(Boolean, nullable=True)
     has_main_web_app = Column(Boolean, nullable=True)
 
+    # Account information
+    account_creation_date = Column(DateTime(timezone=True), nullable=True)
+
     # Timestamps
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())

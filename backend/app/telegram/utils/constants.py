@@ -104,6 +104,7 @@ class MessageEditingMessages:
     FULL_NAME_TEMPLATE = "👤 <b>Полное имя:</b> {full_name}\n"
     LANGUAGE_TEMPLATE = "🌍 <b>Язык:</b> {language}\n"
     PREMIUM_TEMPLATE = "⭐ <b>Premium:</b> {premium_status}\n"
+    ACCOUNT_CREATION_DATE_TEMPLATE = "📅 <b>Дата создания аккаунта:</b> {creation_date}\n"
     MESSAGE_ID_TEMPLATE = "🆔 <b>ID сообщения:</b> {message_id}\n"
     CREATION_TIME_TEMPLATE = "📅 <b>Время написания:</b> {created_time}\n"
     EDIT_TIME_TEMPLATE = "📝 <b>Время редактирования:</b> {edit_time}\n"

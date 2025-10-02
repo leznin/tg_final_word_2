@@ -23,6 +23,7 @@ class ChatMemberBase(BaseModel):
     supports_inline_queries: Optional[bool] = None
     can_connect_to_business: Optional[bool] = None
     has_main_web_app: Optional[bool] = None
+    account_creation_date: Optional[datetime] = None
     joined_at: Optional[datetime] = None
 
 

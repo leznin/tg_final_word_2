@@ -1,45 +1,45 @@
 #!/usr/bin/env python3
 """
-Script to apply database migrations manually
+Apply database migrations manually
 """
 
-import pymysql
-from pymysql import Error
+import asyncio
+import sys
+import os
 
-def apply_migration():
-    """Apply the delete_messages_enabled migration manually"""
+# Add the app directory to the Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from app.core.database import engine
+from sqlalchemy import text
+
+
+async def apply_migration():
+    """Apply the account_creation_date migration manually"""
     try:
-        # Connect to database
-        connection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password='696578As',
-            database='final',
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
-        )
+        async with engine.connect() as conn:
+            # Check if column already exists
+            result = await conn.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'chat_members' AND column_name = 'account_creation_date'
+            """))
 
-        cursor = connection.cursor()
+            if result.fetchone():
+                print("account_creation_date column already exists")
+                return
 
-        # Add the delete_messages_enabled column
-        alter_query = """
-        ALTER TABLE chats
-        ADD COLUMN delete_messages_enabled BOOLEAN NOT NULL DEFAULT FALSE
-        """
+            # Add the column
+            await conn.execute(text("""
+                ALTER TABLE chat_members ADD COLUMN account_creation_date DATETIME
+            """))
 
-        cursor.execute(alter_query)
-        connection.commit()
+            await conn.commit()
+            print("Successfully added account_creation_date column")
 
-        print("Migration applied successfully: Added delete_messages_enabled column")
-
-    except Error as e:
+    except Exception as e:
         print(f"Error applying migration: {e}")
+        raise
 
-    finally:
-        if connection and connection.is_connected():
-            cursor.close()
-            connection.close()
 
 if __name__ == "__main__":
-    apply_migration()
+    asyncio.run(apply_migration())

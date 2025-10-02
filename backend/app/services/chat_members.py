@@ -7,6 +7,7 @@ from sqlalchemy import select, update, func
 from typing import List, Optional
 from app.models.chat_members import ChatMember
 from app.schemas.chat_members import ChatMemberCreate, ChatMemberUpdate, TelegramUserData
+from app.utils.account_age import get_account_creation_date
 
 
 class ChatMemberService:
@@ -65,6 +66,14 @@ class ChatMemberService:
         # Try to find existing member
         db_member = await self.get_chat_member_by_telegram_id(chat_id, telegram_user_data.id)
 
+        # Calculate account creation date if not already known
+        account_creation_date = None
+        if not db_member or not db_member.account_creation_date:
+            try:
+                account_creation_date = await get_account_creation_date(telegram_user_data.id)
+            except Exception as e:
+                print(f"Error calculating account creation date for user {telegram_user_data.id}: {e}")
+
         if db_member:
             # Update existing member - explicitly set fields, excluding id
             db_member.is_bot = telegram_user_data.is_bot
@@ -79,11 +88,16 @@ class ChatMemberService:
             db_member.supports_inline_queries = telegram_user_data.supports_inline_queries
             db_member.can_connect_to_business = telegram_user_data.can_connect_to_business
             db_member.has_main_web_app = telegram_user_data.has_main_web_app
+
+            # Update account creation date if we calculated it
+            if account_creation_date:
+                db_member.account_creation_date = account_creation_date
         else:
             # Create new member
             member_data = ChatMemberCreate(
                 chat_id=chat_id,
                 telegram_user_id=telegram_user_data.id,
+                account_creation_date=account_creation_date,
                 **telegram_user_data.model_dump()
             )
             db_member = ChatMember(**member_data.model_dump())

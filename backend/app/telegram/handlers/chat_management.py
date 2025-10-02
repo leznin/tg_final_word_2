@@ -512,14 +512,14 @@ async def handle_timeout_option_selection(
     await state.clear()
 
 
-@chat_management_router.callback_query(ChatManagementStates.setting_edit_timeout, F.data.startswith("back_to_chat_actions:"))
+@chat_management_router.callback_query(F.data.startswith("back_to_chat_actions:"))
 async def handle_back_to_chat_actions(
     callback: types.CallbackQuery,
     db: AsyncSession,
     state: FSMContext
 ) -> None:
     """
-    Handle back to chat actions from timeout settings
+    Handle back to chat actions from any submenu (timeout settings, moderators, etc.)
     """
     chat_id = int(callback.data.split(":")[1])
 
@@ -531,8 +531,10 @@ async def handle_back_to_chat_actions(
 
     if chat:
         keyboard = get_chat_actions_keyboard(chat, linked_channel)
-        response_text = f"👥 <b>{chat.title or 'ButtonTexts.UNTITLED_CHAT'}</b>\n\n"
-        response_text += f"🔗 Уже связан с каналом: <b>{linked_channel.title or ButtonTexts.UNTITLED_CHAT}</b>" if linked_channel else ChatManagementMessages.SELECTED_CHAT_NO_CHANNEL
+        response_text = f"👥 <b>{chat.title or ButtonTexts.UNTITLED_CHAT}</b>\n\n"
+        response_text += f"🔗 Уже связан с каналом: <b>{linked_channel.title or ButtonTexts.UNTITLED_CHAT}</b>" if linked_channel else ChatManagementMessages.SELECTED_CHAT_NO_CHANNEL.format(
+            chat_title=chat.title or ButtonTexts.UNTITLED_CHAT
+        )
         if linked_channel and linked_channel.username:
             response_text += f" (@{linked_channel.username})"
 

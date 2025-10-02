@@ -17,7 +17,7 @@ from app.telegram.services.moderator_management import ModeratorManagementServic
 from app.utils.account_age import format_account_age
 from app.telegram.states import ChatManagementStates
 from app.telegram.keyboards.chat_management import get_cancel_keyboard, get_back_to_chats_keyboard
-from app.telegram.utils.constants import ChannelLinkingMessages, MessageEditingMessages, ButtonTexts
+from app.telegram.utils.constants import ChannelLinkingMessages, MessageEditingMessages, ButtonTexts, MessageHandlerMessages
 
 # Create router for message updates
 message_router = Router()
@@ -308,107 +308,116 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
             chat_title=message.chat.title or MessageEditingMessages.GROUP_CHAT
         )
 
+        # Check if chat has active subscription for detailed information
+        has_active_subscription = await subscriptions_service.has_active_subscription(chat.id)
+
         # Add information about the author if available
         if message.from_user:
             user_name = message.from_user.full_name
-            user_id = message.from_user.id
-            edited_info += MessageEditingMessages.AUTHOR_INFO_TEMPLATE.format(
-                user_name=user_name, user_id=user_id
-            )
-
-            # Get detailed user information from chat_members table
-            chat_member = await chat_member_service.get_chat_member_by_telegram_id(chat.id, user_id)
-            if chat_member:
-                # Add username if available
-                if chat_member.username:
-                    edited_info += MessageEditingMessages.USERNAME_TEMPLATE.format(
-                        username=chat_member.username
-                    )
-
-                # Add full name details
-                full_name_parts = []
-                if chat_member.first_name:
-                    full_name_parts.append(chat_member.first_name)
-                if chat_member.last_name:
-                    full_name_parts.append(chat_member.last_name)
-                if full_name_parts:
-                    edited_info += MessageEditingMessages.FULL_NAME_TEMPLATE.format(
-                        full_name=" ".join(full_name_parts)
-                    )
-
-                # Add language if available
-                if chat_member.language_code:
-                    edited_info += MessageEditingMessages.LANGUAGE_TEMPLATE.format(
-                        language=chat_member.language_code.upper()
-                    )
-
-                # Add premium status
-                premium_status = "Да" if chat_member.is_premium else "Нет"
-                edited_info += MessageEditingMessages.PREMIUM_TEMPLATE.format(
-                    premium_status=premium_status
+            if has_active_subscription:
+                # Full author info with ID for chats with subscription
+                user_id = message.from_user.id
+                edited_info += MessageEditingMessages.AUTHOR_INFO_TEMPLATE.format(
+                    user_name=user_name, user_id=user_id
                 )
 
-                # Add account creation date if available
-                if chat_member.account_creation_date:
-                    creation_date = chat_member.account_creation_date.strftime('%d.%m.%Y')
-                    edited_info += MessageEditingMessages.ACCOUNT_CREATION_DATE_TEMPLATE.format(
-                        creation_date=creation_date
+                # Get detailed user information from chat_members table (only if subscription is active)
+                chat_member = await chat_member_service.get_chat_member_by_telegram_id(chat.id, user_id)
+                if chat_member:
+                    # Add username if available
+                    if chat_member.username:
+                        edited_info += MessageEditingMessages.USERNAME_TEMPLATE.format(
+                            username=chat_member.username
+                        )
+
+                    # Add full name details
+                    full_name_parts = []
+                    if chat_member.first_name:
+                        full_name_parts.append(chat_member.first_name)
+                    if chat_member.last_name:
+                        full_name_parts.append(chat_member.last_name)
+                    if full_name_parts:
+                        edited_info += MessageEditingMessages.FULL_NAME_TEMPLATE.format(
+                            full_name=" ".join(full_name_parts)
+                        )
+
+                    # Add language if available
+                    if chat_member.language_code:
+                        edited_info += MessageEditingMessages.LANGUAGE_TEMPLATE.format(
+                            language=chat_member.language_code.upper()
+                        )
+
+                    # Add premium status
+                    premium_status = "Да" if chat_member.is_premium else "Нет"
+                    edited_info += MessageEditingMessages.PREMIUM_TEMPLATE.format(
+                        premium_status=premium_status
                     )
 
-        # Add message ID
-        edited_info += MessageEditingMessages.MESSAGE_ID_TEMPLATE.format(
-            message_id=message.message_id
-        )
+                    # Add account creation date if available
+                    if chat_member.account_creation_date:
+                        creation_date = chat_member.account_creation_date.strftime('%d.%m.%Y')
+                        edited_info += MessageEditingMessages.ACCOUNT_CREATION_DATE_TEMPLATE.format(
+                            creation_date=creation_date
+                        )
+            else:
+                # Minimal author info for chats without subscription
+                edited_info += f"👤 <b>Автор:</b> {user_name}\n"
 
-        # Add creation time
-        created_time = db_message.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        edited_info += MessageEditingMessages.CREATION_TIME_TEMPLATE.format(
-            created_time=created_time
-        )
-
-        # Add edit time
-        edit_time = datetime.fromtimestamp(message.edit_date).strftime('%Y-%m-%d %H:%M:%S') if message.edit_date else MessageEditingMessages.TIME_UNKNOWN
-        edited_info += MessageEditingMessages.EDIT_TIME_TEMPLATE.format(
-            edit_time=edit_time
-        )
-
-        # Calculate and add time difference
-        if message.edit_date:
-            edit_datetime = datetime.fromtimestamp(message.edit_date)
-            time_diff = edit_datetime - db_message.created_at
-            total_seconds = int(time_diff.total_seconds())
-
-            if total_seconds < 3600:  # less than 1 hour
-                minutes = total_seconds // 60
-                edited_info += MessageEditingMessages.TIME_DIFF_MINUTES_TEMPLATE.format(
-                    minutes=minutes
-                )
-            else:  # 1 hour or more
-                hours = total_seconds // 3600
-                minutes = (total_seconds % 3600) // 60
-                edited_info += MessageEditingMessages.TIME_DIFF_HOURS_TEMPLATE.format(
-                    hours=hours, minutes=minutes
-                )
-
-        edited_info += "\n"
-
-        # Add the original message content
-        original_text = db_message.text_content or ''
-        if original_text:
-            edited_info += MessageEditingMessages.ORIGINAL_MESSAGE_HEADER.format(
-                original_text=original_text
+        if has_active_subscription:
+            # Add message ID
+            edited_info += MessageEditingMessages.MESSAGE_ID_TEMPLATE.format(
+                message_id=message.message_id
             )
-        else:
-            edited_info += MessageEditingMessages.ORIGINAL_MESSAGE_NO_TEXT
 
-        # Add the new message content
-        new_text = getattr(message, 'text', '') or getattr(message, 'caption', '') or ''
-        if new_text:
-            edited_info += MessageEditingMessages.NEW_MESSAGE_HEADER.format(
-                new_text=new_text
+            # Add creation time
+            created_time = db_message.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            edited_info += MessageEditingMessages.CREATION_TIME_TEMPLATE.format(
+                created_time=created_time
             )
-        else:
-            edited_info += MessageEditingMessages.NEW_MESSAGE_NO_TEXT
+
+            # Add edit time
+            edit_time = datetime.fromtimestamp(message.edit_date).strftime('%Y-%m-%d %H:%M:%S') if message.edit_date else MessageEditingMessages.TIME_UNKNOWN
+            edited_info += MessageEditingMessages.EDIT_TIME_TEMPLATE.format(
+                edit_time=edit_time
+            )
+
+            # Calculate and add time difference
+            if message.edit_date:
+                edit_datetime = datetime.fromtimestamp(message.edit_date)
+                time_diff = edit_datetime - db_message.created_at
+                total_seconds = int(time_diff.total_seconds())
+
+                if total_seconds < 3600:  # less than 1 hour
+                    minutes = total_seconds // 60
+                    edited_info += MessageEditingMessages.TIME_DIFF_MINUTES_TEMPLATE.format(
+                        minutes=minutes
+                    )
+                else:  # 1 hour or more
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    edited_info += MessageEditingMessages.TIME_DIFF_HOURS_TEMPLATE.format(
+                        hours=hours, minutes=minutes
+                    )
+
+            edited_info += "\n"
+
+            # Add the original message content
+            original_text = db_message.text_content or ''
+            if original_text:
+                edited_info += MessageEditingMessages.ORIGINAL_MESSAGE_HEADER.format(
+                    original_text=original_text
+                )
+            else:
+                edited_info += MessageEditingMessages.ORIGINAL_MESSAGE_NO_TEXT
+
+            # Add the new message content
+            new_text = getattr(message, 'text', '') or getattr(message, 'caption', '') or ''
+            if new_text:
+                edited_info += MessageEditingMessages.NEW_MESSAGE_HEADER.format(
+                    new_text=new_text
+                )
+            else:
+                edited_info += MessageEditingMessages.NEW_MESSAGE_NO_TEXT
 
         # Send notification to linked channel with media if present
         await send_media_notification_to_channel(
@@ -483,8 +492,7 @@ async def handle_channel_forward_for_linking(
         )
     else:
         await message.reply(
-            f"❌ Ошибка связывания: {response_message}\n\n"
-            "Попробуйте переслать другое сообщение из канала.",
+            MessageHandlerMessages.CHANNEL_LINKING_ERROR_TEMPLATE.format(response_message=response_message),
             reply_markup=get_cancel_keyboard()
         )
         return
@@ -510,8 +518,7 @@ async def handle_moderator_forward_for_adding(
     if not user_data:
         # Message is not forwarded from a user
         await message.reply(
-            "❌ Это не пересылаемое сообщение от пользователя.\n\n"
-            "Перешлите сообщение от пользователя, которого хотите назначить модератором.",
+            MessageHandlerMessages.INVALID_USER_FORWARD,
             reply_markup=get_cancel_keyboard()
         )
         return
@@ -541,8 +548,7 @@ async def handle_moderator_forward_for_adding(
         )
     else:
         await message.reply(
-            f"❌ Ошибка: {response_message}\n\n"
-            "Попробуйте переслать другое сообщение от пользователя.",
+            MessageHandlerMessages.MODERATOR_ADD_ERROR_TEMPLATE.format(response_message=response_message),
             reply_markup=get_cancel_keyboard()
         )
         return

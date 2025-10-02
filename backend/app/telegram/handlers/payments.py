@@ -76,7 +76,7 @@ async def handle_payment_request(
         price = await prices_service.get_price_by_type(subscription_type)
 
         if not price:
-            await callback.answer("❌ Ошибка: цена подписки не найдена")
+            await callback.answer(PaymentMessages.PRICE_NOT_FOUND)
             return
 
         # Get chat information
@@ -84,7 +84,7 @@ async def handle_payment_request(
         chat = await chat_service.get_chat(chat_id)
 
         if not chat:
-            await callback.answer("❌ Ошибка: чат не найден")
+            await callback.answer(PaymentMessages.CHAT_NOT_FOUND)
             return
 
         # Create invoice
@@ -92,7 +92,7 @@ async def handle_payment_request(
 
         subscription_text = "месяц" if subscription_type == "month" else "год"
         title = f"AI проверка контента - {subscription_text}"
-        description = f"Подписка на AI проверку контента для чата '{chat.title or f'ID: {chat.telegram_chat_id}'}' на {subscription_text}"
+        description = f"Подписка на AI проверку с расширенными уведомлениями для чата '{chat.title or f'ID: {chat.telegram_chat_id}'}' на {subscription_text}"
 
         # Payload format: subscription_type:chat_id:user_id
         payload = f"{subscription_type}:{chat_id}:{callback.from_user.id}"
@@ -116,7 +116,7 @@ async def handle_payment_request(
 
     except Exception as e:
         print(f"Error in handle_payment_request: {e}")
-        await callback.answer("❌ Произошла ошибка при создании платежа")
+        await callback.answer(PaymentMessages.PAYMENT_CREATION_ERROR)
 
 
 @payment_router.pre_checkout_query()
@@ -133,7 +133,7 @@ async def pre_checkout_handler(
         # Parse payload: subscription_type:chat_id:user_id
         payload_parts = pre_checkout_query.invoice_payload.split(":")
         if len(payload_parts) != 3:
-            await pre_checkout_query.answer(ok=False, error_message="Неверные данные платежа")
+            await pre_checkout_query.answer(ok=False, error_message=PaymentMessages.INVALID_PAYMENT_DATA)
             return
 
         subscription_type, chat_id_str, user_id_str = payload_parts
@@ -147,7 +147,7 @@ async def pre_checkout_handler(
         if not chat:
             await pre_checkout_query.answer(
                 ok=False,
-                error_message="Чат не найден"
+                error_message=PaymentMessages.CHAT_NOT_FOUND_PAYMENT
             )
             return
 
@@ -158,7 +158,7 @@ async def pre_checkout_handler(
         if existing_subscription:
             await pre_checkout_query.answer(
                 ok=False,
-                error_message="У этого чата уже есть активная подписка на AI проверку"
+                error_message=PaymentMessages.SUBSCRIPTION_EXISTS
             )
             return
 
@@ -167,7 +167,7 @@ async def pre_checkout_handler(
 
     except Exception as e:
         print(f"Error in pre_checkout_handler: {e}")
-        await pre_checkout_query.answer(ok=False, error_message="Ошибка проверки платежа")
+        await pre_checkout_query.answer(ok=False, error_message=PaymentMessages.PAYMENT_VALIDATION_ERROR)
 
 
 @payment_router.message(F.successful_payment)
@@ -233,4 +233,4 @@ async def cancel_payment_handler(callback: CallbackQuery) -> None:
     Handle payment cancellation
     """
     await callback.message.delete()
-    await callback.answer("Платеж отменен")
+    await callback.answer(PaymentMessages.PAYMENT_CANCELLED)

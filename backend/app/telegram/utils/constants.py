@@ -95,17 +95,19 @@ class MessageEditingMessages:
     """Messages for message editing notifications"""
 
     MESSAGE_DELETED_HEADER = "🚫 <b>Сообщение удалено из чата</b>\n\n"
+    CHAT_INFO_TEMPLATE = "💬 <b>Чат:</b> {chat_title}\n\n"
+
     PROHIBITED_CONTENT_WARNING = "⚠️ <b>ВНИМАНИЕ: Сообщение содержит запрещенный контент!</b>\n\n"
     VIOLATION_DESCRIPTION_TEMPLATE = "🚫 <b>Причина:</b> {description}\n\n"
 
-    CHAT_INFO_TEMPLATE = "💬 <b>Чат:</b> {chat_title}\n"
     AUTHOR_INFO_TEMPLATE = "👤 <b>Автор:</b> {user_name} (ID: {user_id})\n"
     USERNAME_TEMPLATE = "📱 <b>Username:</b> @{username}\n"
     FULL_NAME_TEMPLATE = "👤 <b>Полное имя:</b> {full_name}\n"
     LANGUAGE_TEMPLATE = "🌍 <b>Язык:</b> {language}\n"
     PREMIUM_TEMPLATE = "⭐ <b>Premium:</b> {premium_status}\n"
     ACCOUNT_CREATION_DATE_TEMPLATE = "📅 <b>Дата создания аккаунта:</b> {creation_date}\n"
-    MESSAGE_ID_TEMPLATE = "🆔 <b>ID сообщения:</b> {message_id}\n"
+    MESSAGE_ID_TEMPLATE = "🆔 <b>ID сообщения:</b> {message_id}\n\n"
+    
     CREATION_TIME_TEMPLATE = "📅 <b>Время написания:</b> {created_time}\n"
     EDIT_TIME_TEMPLATE = "📝 <b>Время редактирования:</b> {edit_time}\n"
     TIME_DIFF_MINUTES_TEMPLATE = "⏱️ <b>Время после написания:</b> {minutes} мин\n"

@@ -65,10 +65,10 @@ async def get_total_message_count(
 
 @router.delete("/cleanup")
 async def cleanup_old_messages(
-    hours: int = 50,
+    hours: int = 168,
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete messages older than specified hours. Default is 50 hours."""
+    """Delete messages older than specified hours. Default is 7 days (168 hours)."""
     message_service = MessageService(db)
     deleted_count = await message_service.delete_old_messages(hours)
     return {

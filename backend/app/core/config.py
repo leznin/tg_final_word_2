@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_MINUTES: int = 30
 
     # Message cleanup settings
-    MESSAGE_RETENTION_HOURS: int = 50  # Keep messages for 50 hours
+    MESSAGE_RETENTION_HOURS: int = 168  # Keep messages for 7 days (168 hours)
     CLEANUP_INTERVAL_MINUTES: int = 60  # Run cleanup every hour
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)

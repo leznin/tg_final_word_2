@@ -15,12 +15,15 @@ admin_router = APIRouter()
 
 @admin_router.get("/", response_class=HTMLResponse)
 async def admin_dashboard():
-    """Admin dashboard"""
-    return """
+    from fastapi.responses import Response
+    html_content = """
     <!DOCTYPE html>
     <html>
     <head>
         <title>Admin Panel</title>
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
         <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             .stats { display: flex; gap: 20px; margin: 20px 0; }
@@ -54,15 +57,29 @@ async def admin_dashboard():
             // Load statistics
             fetch('/api/v1/users', { headers: { 'X-Admin-Key': 'admin-secret-key' } })
                 .then(r => r.json())
-                .then(data => document.getElementById('user-count').textContent = data.length);
+                .then(data => document.getElementById('user-count').textContent = data.length)
+                .catch(error => {
+                    console.error('Error loading users:', error);
+                    document.getElementById('user-count').textContent = 'Error loading';
+                });
 
-            fetch('/api/v1/telegram/messages', { headers: { 'X-Admin-Key': 'admin-secret-key' } })
+            fetch('/api/v1/messages/count', { headers: { 'X-Admin-Key': 'admin-secret-key' } })
                 .then(r => r.json())
-                .then(data => document.getElementById('message-count').textContent = data.length);
+                .then(data => document.getElementById('message-count').textContent = data.total_messages)
+                .catch(error => {
+                    console.error('Error loading messages:', error);
+                    document.getElementById('message-count').textContent = 'Error loading';
+                });
         </script>
     </body>
     </html>
     """
+
+    response = Response(content=html_content, media_type="text/html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @admin_router.get("/users", response_class=HTMLResponse)
@@ -125,6 +142,64 @@ async def admin_users(db: AsyncSession = Depends(get_db)):
     """
 
     return html
+
+
+@admin_router.get("/chats", response_class=HTMLResponse)
+async def admin_chats():
+    """Admin chats page"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Admin - Chats</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            nav { margin-bottom: 20px; }
+            nav a { margin-right: 15px; text-decoration: none; padding: 10px; background: #f0f0f0; border-radius: 3px; }
+        </style>
+    </head>
+    <body>
+        <h1>Chats Management</h1>
+        <nav>
+            <a href="/admin/">Dashboard</a>
+            <a href="/admin/chats">Chats</a>
+            <a href="/admin/users">Users</a>
+            <a href="/admin/broadcast">Broadcast</a>
+            <a href="/admin/settings">Settings</a>
+        </nav>
+        <p>Chat management functionality coming soon...</p>
+    </body>
+    </html>
+    """
+
+
+@admin_router.get("/settings", response_class=HTMLResponse)
+async def admin_settings():
+    """Admin settings page"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Admin - Settings</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            nav { margin-bottom: 20px; }
+            nav a { margin-right: 15px; text-decoration: none; padding: 10px; background: #f0f0f0; border-radius: 3px; }
+        </style>
+    </head>
+    <body>
+        <h1>Settings</h1>
+        <nav>
+            <a href="/admin/">Dashboard</a>
+            <a href="/admin/chats">Chats</a>
+            <a href="/admin/users">Users</a>
+            <a href="/admin/broadcast">Broadcast</a>
+            <a href="/admin/settings">Settings</a>
+        </nav>
+        <p>Settings functionality coming soon...</p>
+    </body>
+    </html>
+    """
 
 
 @admin_router.get("/broadcast", response_class=HTMLResponse)
@@ -249,7 +324,7 @@ async def admin_broadcast():
                     <input type="text" placeholder="Button text" class="button-text">
                     <input type="url" placeholder="Button URL (optional)" class="button-url">
                     <input type="text" placeholder="Callback data (optional)" class="button-callback">
-                    <button type="button" class="remove-button" onclick="removeRow(${rowCounter})">Remove</button>
+                    <button type="button" class="remove-button" onclick="removeRow(\${rowCounter})">Remove</button>
                 `;
                 keyboardRows.appendChild(rowDiv);
             }}

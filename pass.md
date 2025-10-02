@@ -15,7 +15,7 @@ DATABASE_URL=mysql+aiomysql://root:696578As@localhost/final?charset=utf8mb4
 
 # Telegram Bot - GET TOKEN FROM @BotFather
 TELEGRAM_BOT_TOKEN=7703818325:AAEKjEswBvhEK1AXzJVJyLAydxRoPMkmeVk
-TELEGRAM_WEBHOOK_URL=https://test777.ngrok.app/webhook
+# TELEGRAM_WEBHOOK_URL=https://yourdomain.com/webhook  # Set your domain URL
 
 # Admin panel
 ADMIN_SECRET_KEY=696578As

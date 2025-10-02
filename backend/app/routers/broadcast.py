@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, Union
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.services.broadcast import BroadcastService
 from app.schemas.broadcast import BroadcastMessageRequest, BroadcastResult, BroadcastStatus
 
@@ -122,9 +123,8 @@ async def upload_media_file(
         with open(file_path, "wb") as f:
             f.write(content)
 
-        # Create public URL (using ngrok for development)
-        # In production, replace with your actual domain
-        public_url = f"https://test777.ngrok.app/static/uploads/{unique_filename}"
+        # Create public URL using configured domain
+        public_url = f"{settings.APP_DOMAIN}/static/uploads/{unique_filename}"
 
         return {
             "url": public_url,

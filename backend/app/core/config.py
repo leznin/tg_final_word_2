@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     # API settings
     API_V1_STR: str = "/api/v1"
+    APP_DOMAIN: str = "http://localhost:8000"  # Base domain for public URLs
     SECRET_KEY: str = "your-secret-key-change-in-production"
 
     # CORS

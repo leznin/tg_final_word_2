@@ -152,6 +152,9 @@ DATABASE_URL=mysql+aiomysql://username:password@localhost:3306/database_name
 SECRET_KEY=your-super-secret-key-change-this-in-production
 ADMIN_SECRET_KEY=admin-secret-key-change-this-too
 
+# Domain Configuration (REQUIRED for file uploads)
+APP_DOMAIN=https://yourdomain.com
+
 # Telegram Bot (OPTIONAL - for bot functionality)
 TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
 TELEGRAM_WEBHOOK_URL=https://yourdomain.com/webhook

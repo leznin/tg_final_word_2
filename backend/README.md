@@ -64,6 +64,7 @@ uvicorn app.main:app --reload
 
 ## Environment Variables
 
+- `APP_DOMAIN`: Base domain for public URLs (e.g., https://yourdomain.com)
 - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token from BotFather
 - `TELEGRAM_WEBHOOK_URL`: Webhook URL for Telegram bot (optional)
 - `DATABASE_URL`: Database connection string (MySQL format: `mysql+aiomysql://user:password@host:port/database`)

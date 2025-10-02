@@ -10,6 +10,7 @@ import { Moderators } from './pages/Moderators';
 import { ChatDetail } from './pages/ChatDetail';
 import { OpenRouter } from './pages/OpenRouter';
 import { AIModerationPayments } from './pages/AIModerationPayments';
+import { Broadcast } from './pages/Broadcast';
 import { Login } from './pages/Login';
 
 const queryClient = new QueryClient({
@@ -47,6 +48,7 @@ function App() {
             <Route path="moderators" element={<Moderators />} />
             <Route path="ai-moderation-payments" element={<AIModerationPayments />} />
             <Route path="openrouter" element={<OpenRouter />} />
+            <Route path="broadcast" element={<Broadcast />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

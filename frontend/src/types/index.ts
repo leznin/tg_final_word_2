@@ -344,3 +344,34 @@ export interface OpenRouterBalanceResponse {
   balance: OpenRouterBalance;
   last_updated: string;
 }
+
+export interface BroadcastMessageRequest {
+  message: string;
+  original_message?: string;
+}
+
+export interface BroadcastResult {
+  total_users: number;
+  sent_successfully: number;
+  blocked_users: number;
+  failed_sends: number;
+  duration_seconds: number;
+  started_at: string;
+  completed_at: string;
+}
+
+export interface BroadcastStatus {
+  is_running: boolean;
+  current_progress: number;
+  total_users: number;
+  sent_successfully: number;
+  blocked_users: number;
+  failed_sends: number;
+  estimated_time_remaining?: number;
+  started_at?: string;
+}
+
+export interface BroadcastUsersCount {
+  count: number;
+  description: string;
+}

@@ -14,6 +14,7 @@ from app.routers.chat_info import router as chat_info_router
 from app.routers.openrouter import router as openrouter_router
 from app.routers.subscription_prices import router as subscription_prices_router
 from app.routers.chat_subscriptions import router as chat_subscriptions_router
+from app.routers.broadcast import router as broadcast_router
 
 api_router = APIRouter()
 
@@ -29,3 +30,4 @@ api_router.include_router(chat_info_router, prefix="/chat-info", tags=["chat-inf
 api_router.include_router(openrouter_router, prefix="/openrouter", tags=["openrouter"])
 api_router.include_router(subscription_prices_router, prefix="/subscription-prices", tags=["subscription-prices"])
 api_router.include_router(chat_subscriptions_router, prefix="/chat-subscriptions", tags=["chat-subscriptions"])
+api_router.include_router(broadcast_router, prefix="/broadcast", tags=["broadcast"])

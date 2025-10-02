@@ -72,3 +72,5 @@ def downgrade() -> None:
     # Drop subscription_prices table
     op.drop_table('subscription_prices')
 
+
+

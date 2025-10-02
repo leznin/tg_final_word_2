@@ -5,6 +5,7 @@ FastAPI application main file with OOP structure for Telegram and Admin panel
 import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
@@ -131,6 +132,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Include routers
 app.include_router(api_router, prefix=settings.API_V1_STR)

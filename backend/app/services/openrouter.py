@@ -288,6 +288,101 @@ Rules:
             print(f"Error checking message content with OpenRouter: {str(e)}")
             return {"violates": False, "description": "OK"}
 
+    async def translate_message(self, message_text: str, target_language: str) -> str:
+        """
+        Translate message to target language using OpenRouter AI
+        Returns translated message or original message if translation fails
+        """
+        try:
+            settings = await self.get_settings()
+            if not settings or not settings.is_active:
+                print("OpenRouter settings not configured or inactive for translation")
+                return message_text
+
+            if not settings.selected_model:
+                print("No model selected for OpenRouter translation")
+                return message_text
+
+            if not message_text or not message_text.strip():
+                return message_text
+
+            # Always attempt translation - let AI decide if translation is needed
+            # Only skip if target_language is None or empty
+            if not target_language:
+                return message_text
+
+            headers = {
+                "Authorization": f"Bearer {settings.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/openrouter/openrouter",
+                "X-Title": "Telegram Message Translator"
+            }
+
+            # System prompt for translation
+            system_prompt = f"""You are a professional translator. Translate the given message to {target_language}.
+
+STRICT RULES:
+- If the message is already in {target_language}, return it as-is.
+- If the message needs translation, provide ONLY the translated text.
+- NEVER add any comments, explanations, notes, or extra text.
+- NEVER mention what language the message is in.
+- NEVER explain your translation process.
+- Return ONLY the message text, nothing else.
+- Preserve HTML formatting and links exactly as they appear.
+- Maintain the original tone and style."""
+
+            # Generate unique request ID
+            request_id = str(uuid.uuid4())
+
+            # Prepare the request payload
+            payload = {
+                "model": settings.selected_model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": message_text.strip()
+                    }
+                ],
+                "temperature": 0.1,  # Low temperature for consistent translations
+                "max_tokens": len(message_text) * 2,  # Allow enough tokens for translation
+                "top_p": 1,
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+                "stream": False,
+                "user": f"translation_{request_id}",
+            }
+
+            response = await self.client.post(
+                f"{self.OPENROUTER_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30.0
+            )
+
+            if response.status_code != 200:
+                print(f"OpenRouter API error during translation: {response.status_code} - {response.text}")
+                return message_text
+
+            response_data = response.json()
+
+            # Extract the response content
+            if "choices" in response_data and len(response_data["choices"]) > 0:
+                translated_text = response_data["choices"][0].get("message", {}).get("content", "").strip()
+
+                # Return translated text if it's not empty, otherwise return original
+                return translated_text if translated_text else message_text
+            else:
+                print(f"Invalid response structure from OpenRouter during translation: {response_data}")
+                return message_text
+
+        except Exception as e:
+            print(f"Error translating message with OpenRouter: {str(e)}")
+            return message_text
+
     async def close(self):
         """Close HTTP client"""
         await self.client.aclose()

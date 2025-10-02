@@ -66,6 +66,10 @@ export const Broadcast: React.FC = () => {
           alert('Кнопка не может иметь одновременно URL и callback_data');
           return;
         }
+        if (!button.url && !button.callback_data) {
+          alert('Кнопка должна иметь либо URL, либо callback_data');
+          return;
+        }
       }
     }
 

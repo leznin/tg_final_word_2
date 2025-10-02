@@ -4,6 +4,7 @@ OpenRouter service with business logic and API integration
 
 import httpx
 import uuid
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional, List, Dict, Any
@@ -318,21 +319,16 @@ Rules:
                 "X-Title": "Telegram Message Translator"
             }
 
-            # System prompt for translation
-            system_prompt = f"""You are a professional translator. Translate the given message to {target_language}.
-
-STRICT RULES:
-- If the message is already in {target_language}, return it as-is.
-- If the message needs translation, provide ONLY the translated text.
-- NEVER add any comments, explanations, notes, or extra text.
-- NEVER mention what language the message is in.
-- NEVER explain your translation process.
-- Return ONLY the message text, nothing else.
-- Preserve HTML formatting and links exactly as they appear.
-- Maintain the original tone and style."""
+            # Use minimal system prompt to avoid confusion
+            system_prompt = "You are a translator. Translate user messages accurately."
 
             # Generate unique request ID
             request_id = str(uuid.uuid4())
+
+            # Prepare user message with clear instructions
+            user_message = f"""Translate this text to {target_language}. Return ONLY the translation, nothing else:
+
+{message_text.strip()}"""
 
             # Prepare the request payload
             payload = {
@@ -344,11 +340,11 @@ STRICT RULES:
                     },
                     {
                         "role": "user",
-                        "content": message_text.strip()
+                        "content": user_message
                     }
                 ],
                 "temperature": 0.1,  # Low temperature for consistent translations
-                "max_tokens": len(message_text) * 2,  # Allow enough tokens for translation
+                "max_tokens": len(user_message) * 2,  # Allow enough tokens for translation
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,
@@ -373,8 +369,19 @@ STRICT RULES:
             if "choices" in response_data and len(response_data["choices"]) > 0:
                 translated_text = response_data["choices"][0].get("message", {}).get("content", "").strip()
 
-                # Return translated text if it's not empty, otherwise return original
-                return translated_text if translated_text else message_text
+                # Post-process the translation to remove any unwanted additions
+                if translated_text:
+                    # Remove common unwanted patterns
+                    translated_text = self._clean_translation_result(translated_text)
+
+                    # If cleaning removed too much content (less than 20% of original), use original
+                    if len(translated_text) < len(message_text) * 0.2:
+                        print(f"Translation result too short after cleaning, using original: '{translated_text}'")
+                        return message_text
+
+                    return translated_text
+
+                return message_text
             else:
                 print(f"Invalid response structure from OpenRouter during translation: {response_data}")
                 return message_text
@@ -382,6 +389,179 @@ STRICT RULES:
         except Exception as e:
             print(f"Error translating message with OpenRouter: {str(e)}")
             return message_text
+
+    def _clean_translation_result(self, text: str) -> str:
+        """
+        Clean translation result from unwanted additions like code, comments, etc.
+        """
+        import re
+
+        original_text = text
+
+        # Remove markdown formatting that wasn't in original
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # Remove **bold**
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)      # Remove *italic*
+        text = re.sub(r'`([^`]+)`', r'\1', text)        # Remove `code` formatting
+
+        # Remove quotation marks that wrap the entire text
+        text = re.sub(r'^["""]', '', text)
+        text = re.sub(r'["""]$', '', text)
+
+        # Remove parentheses with code-like content
+        text = re.sub(r'\s*\([^)]*\)$', '', text)  # Remove trailing (code) or (anything)
+
+        # Remove brackets with technical content
+        text = re.sub(r'\s*\[[^\]]*\]$', '', text)  # Remove trailing [tech]
+
+        # Remove explanatory dashes
+        text = re.sub(r'\s*-\s*.*$', '', text)  # Remove " - explanation"
+
+        # Remove common unwanted suffixes
+        text = re.sub(r'\s*(button|кнопка|btn)$', '', text, flags=re.IGNORECASE)
+
+        # Clean up extra whitespace
+        text = text.strip()
+
+        if text != original_text:
+            print(f"Cleaned translation: '{original_text}' -> '{text}'")
+
+        return text
+
+    async def translate_messages_batch(self, messages: List[str], target_language: str) -> List[str]:
+        """
+        Translate multiple messages to target language using OpenRouter AI in a single request
+        Returns list of translated messages or original messages if translation fails
+        """
+        if not messages:
+            return []
+
+        # Filter out empty messages but keep track of their positions
+        non_empty_messages = []
+        indices = []
+        for i, msg in enumerate(messages):
+            if msg and msg.strip():
+                non_empty_messages.append(msg.strip())
+                indices.append(i)
+
+        if not non_empty_messages:
+            return messages
+
+        try:
+            settings = await self.get_settings()
+            if not settings or not settings.is_active:
+                print("OpenRouter settings not configured or inactive for batch translation")
+                return messages
+
+            if not settings.selected_model:
+                print("No model selected for OpenRouter batch translation")
+                return messages
+
+            if not target_language:
+                return messages
+
+            headers = {
+                "Authorization": f"Bearer {settings.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/openrouter/openrouter",
+                "X-Title": "Telegram Batch Message Translator"
+            }
+
+            # Create a single prompt with all messages
+            system_prompt = f"You are a translator. Translate the following texts to {target_language}. Return ONLY the translations as a JSON array, nothing else."
+
+            # Format messages for translation
+            messages_text = "\n".join(f"{i+1}. {msg}" for i, msg in enumerate(non_empty_messages))
+
+            user_message = f"""Translate these texts to {target_language}. Return ONLY a JSON array of translations:
+
+{messages_text}"""
+
+            # Generate unique request ID
+            request_id = str(uuid.uuid4())
+
+            # Prepare the request payload
+            payload = {
+                "model": settings.selected_model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": user_message
+                    }
+                ],
+                "temperature": 0.1,  # Low temperature for consistent translations
+                "max_tokens": len(user_message) * 2,  # Allow enough tokens for translations
+                "top_p": 1,
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+                "response_format": {"type": "json_object"},  # Force JSON response
+                "stream": False,
+                "user": f"batch_translation_{request_id}",
+            }
+
+            response = await self.client.post(
+                f"{self.OPENROUTER_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60.0  # Longer timeout for batch operations
+            )
+
+            if response.status_code != 200:
+                print(f"OpenRouter API error during batch translation: {response.status_code} - {response.text}")
+                return messages
+
+            response_data = response.json()
+
+            # Extract the response content
+            if "choices" in response_data and len(response_data["choices"]) > 0:
+                content = response_data["choices"][0].get("message", {}).get("content", "").strip()
+
+                try:
+                    # Parse JSON response from AI
+                    ai_response = json.loads(content)
+
+                    # Extract translations array
+                    if isinstance(ai_response, dict) and "translations" in ai_response:
+                        translations = ai_response["translations"]
+                    elif isinstance(ai_response, list):
+                        translations = ai_response
+                    else:
+                        print(f"Unexpected batch translation response format: {ai_response}")
+                        return messages
+
+                    if not isinstance(translations, list) or len(translations) != len(non_empty_messages):
+                        print(f"Invalid translations array length: expected {len(non_empty_messages)}, got {len(translations) if isinstance(translations, list) else 'not a list'}")
+                        return messages
+
+                    # Clean translations and place them back in original order
+                    result = list(messages)  # Copy original list
+                    for idx, translation in enumerate(translations):
+                        if idx < len(indices):
+                            original_idx = indices[idx]
+                            cleaned_translation = self._clean_translation_result(str(translation))
+
+                            # If cleaning removed too much content, use original
+                            if len(cleaned_translation) < len(non_empty_messages[idx]) * 0.2:
+                                print(f"Batch translation result too short after cleaning, using original: '{cleaned_translation}'")
+                                result[original_idx] = messages[original_idx]
+                            else:
+                                result[original_idx] = cleaned_translation
+
+                    return result
+
+                except (json.JSONDecodeError, KeyError, IndexError) as e:
+                    print(f"Failed to parse batch translation response as JSON: {content}, error: {e}")
+                    return messages
+            else:
+                print(f"Invalid response structure from OpenRouter during batch translation: {response_data}")
+                return messages
+
+        except Exception as e:
+            print(f"Error batch translating messages with OpenRouter: {str(e)}")
+            return messages
 
     async def close(self):
         """Close HTTP client"""

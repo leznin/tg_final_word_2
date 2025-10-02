@@ -6,8 +6,9 @@ import asyncio
 import base64
 import mimetypes
 from datetime import datetime
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 from io import BytesIO
+from copy import deepcopy
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
@@ -33,6 +34,57 @@ class BroadcastService:
         self.blocked_users = 0
         self.failed_sends = 0
         self.started_at = None
+
+    async def _translate_keyboard_markup(self, reply_markup, target_language: str):
+        """
+        Translate keyboard button texts while preserving URLs and callback_data
+        Uses batch translation for optimal API usage
+        """
+        if not reply_markup:
+            return None
+
+        # Deep copy the markup to avoid modifying the original
+        translated_markup = deepcopy(reply_markup)
+
+        # Collect all button texts that need translation
+        button_texts = []
+        button_positions = []  # Track positions of buttons that need translation
+
+        for row_idx, row in enumerate(translated_markup.inline_keyboard):
+            for button_idx, button in enumerate(row.buttons):
+                if button.text and button.text.strip():
+                    button_texts.append(button.text)
+                    button_positions.append((row_idx, button_idx))
+
+        if not button_texts:
+            return translated_markup
+
+        # Translate all button texts in a single batch request
+        try:
+            translated_texts = await self.openrouter_service.translate_messages_batch(
+                button_texts, target_language
+            )
+
+            # Apply translated texts back to buttons
+            for i, (row_idx, button_idx) in enumerate(button_positions):
+                if i < len(translated_texts):
+                    translated_markup.inline_keyboard[row_idx].buttons[button_idx].text = translated_texts[i]
+
+        except Exception as e:
+            print(f"Failed to batch translate keyboard buttons to {target_language}: {e}")
+            # Fall back to individual translation
+            for i, (row_idx, button_idx) in enumerate(button_positions):
+                button = translated_markup.inline_keyboard[row_idx].buttons[button_idx]
+                try:
+                    translated_text = await self.openrouter_service.translate_message(
+                        button.text, target_language
+                    )
+                    button.text = translated_text
+                except Exception as e2:
+                    print(f"Failed to translate button text '{button.text}' to {target_language}: {e2}")
+                    # Keep original text on translation failure
+
+        return translated_markup
 
     async def get_broadcast_users(self) -> List[User]:
         """Get users eligible for broadcast (have telegram_id and can receive messages)"""
@@ -77,6 +129,7 @@ class BroadcastService:
 
             if all_languages:
                 print(f"Translating message to {len(all_languages)} unique languages: {sorted(all_languages)}")
+                print(f"Total users: {len(users)}, API calls for message translation: {len(all_languages)} (1 per unique language)")
 
                 # Translate message for each unique language once
                 for target_lang in all_languages:
@@ -89,9 +142,29 @@ class BroadcastService:
                         # Fall back to original message for this language
                         translations[target_lang] = request.message
 
-                print(f"Translation completed for {len(translations)} languages")
+                print(f"Message translation completed for {len(translations)} languages")
             else:
                 print("No language codes found, sending original message to all users")
+
+            # Pre-translate keyboard markup for all unique languages if keyboard exists
+            translations_keyboard = {}
+            if request.reply_markup and all_languages:
+                # Count total buttons in keyboard
+                total_buttons = sum(len(row.buttons) for row in request.reply_markup.inline_keyboard)
+                print(f"Translating keyboard buttons to {len(all_languages)} unique languages")
+                print(f"Keyboard has {total_buttons} buttons, API calls for keyboard translation: {len(all_languages)} (1 batch call per unique language)")
+
+                for target_lang in all_languages:
+                    try:
+                        translations_keyboard[target_lang] = await self._translate_keyboard_markup(
+                            request.reply_markup, target_lang
+                        )
+                    except Exception as e:
+                        print(f"Keyboard translation failed for language {target_lang}: {e}")
+                        # Fall back to original keyboard for this language
+                        translations_keyboard[target_lang] = request.reply_markup
+
+                print(f"Keyboard translation completed for {len(translations_keyboard)} languages")
 
             # Send messages with rate limiting (28 messages per second)
             batch_size = 28
@@ -109,12 +182,17 @@ class BroadcastService:
                     else:
                         user_message = request.message
 
+                    # Get translated keyboard from cache or use original
+                    user_reply_markup = request.reply_markup
+                    if user.language_code and user.language_code in translations_keyboard:
+                        user_reply_markup = translations_keyboard[user.language_code]
+
                     # Create user-specific request with original message preserved
                     user_request = BroadcastMessageRequest(
                         message=user_message,
                         original_message=request.original_message or request.message,
                         media=request.media,
-                        reply_markup=request.reply_markup
+                        reply_markup=user_reply_markup
                     )
 
                     tasks.append(self._send_to_user(user, user_request))
@@ -177,15 +255,29 @@ class BroadcastService:
                 for row in request.reply_markup.inline_keyboard:
                     keyboard_row = []
                     for button in row.buttons:
-                        keyboard_row.append(
-                            InlineKeyboardButton(
-                                text=button.text,
-                                url=button.url,
-                                callback_data=button.callback_data
-                            )
-                        )
-                    keyboard.append(keyboard_row)
-                reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+                        # Skip invalid buttons
+                        if not button.url and not button.callback_data:
+                            print(f"Warning: Skipping button '{button.text}' - inline keyboard buttons must have url or callback_data")
+                            continue
+                        if button.url and button.callback_data:
+                            print(f"Warning: Skipping button '{button.text}' - inline keyboard buttons cannot have both url and callback_data")
+                            continue
+
+                        # Create button with only defined parameters
+                        button_kwargs = {"text": button.text}
+                        if button.url:
+                            button_kwargs["url"] = button.url
+                        if button.callback_data:
+                            button_kwargs["callback_data"] = button.callback_data
+                        keyboard_row.append(InlineKeyboardButton(**button_kwargs))
+
+                    # Only add non-empty rows
+                    if keyboard_row:
+                        keyboard.append(keyboard_row)
+
+                # Only create markup if keyboard is not empty
+                if keyboard:
+                    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
             # Send media or text message
             if request.media:

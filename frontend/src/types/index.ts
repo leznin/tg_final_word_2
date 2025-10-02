@@ -345,9 +345,32 @@ export interface OpenRouterBalanceResponse {
   last_updated: string;
 }
 
+export interface InlineKeyboardButton {
+  text: string;
+  url?: string;
+  callback_data?: string;
+}
+
+export interface InlineKeyboardRow {
+  buttons: InlineKeyboardButton[];
+}
+
+export interface InlineKeyboardMarkup {
+  inline_keyboard: InlineKeyboardRow[];
+}
+
+export interface MediaFile {
+  type: string; // 'photo', 'video', 'document'
+  url: string; // URL to the file or file_id
+  filename?: string;
+  caption?: string;
+}
+
 export interface BroadcastMessageRequest {
   message: string;
   original_message?: string;
+  media?: MediaFile;
+  reply_markup?: InlineKeyboardMarkup;
 }
 
 export interface BroadcastResult {

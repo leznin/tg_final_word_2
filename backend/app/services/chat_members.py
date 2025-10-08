@@ -3,7 +3,7 @@ Chat members service with business logic
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, or_
 from typing import List, Optional
 from app.models.chat_members import ChatMember
 from app.schemas.chat_members import ChatMemberCreate, ChatMemberUpdate, TelegramUserData
@@ -46,6 +46,25 @@ class ChatMemberService:
             .offset(skip)
             .limit(limit)
         )
+        return result.scalars().all()
+
+    async def get_chat_members_with_search(self, chat_id: int, skip: int = 0, limit: int = 30, search: str = "") -> List[ChatMember]:
+        """Get members of a specific chat with search functionality"""
+        query = select(ChatMember).where(ChatMember.chat_id == chat_id)
+
+        # Add search conditions if search parameter is provided
+        if search:
+            search_filter = or_(
+                ChatMember.first_name.ilike(f"%{search}%"),
+                ChatMember.last_name.ilike(f"%{search}%"),
+                ChatMember.username.ilike(f"%{search}%"),
+                func.cast(ChatMember.telegram_user_id, func.String).ilike(f"%{search}%")
+            )
+            query = query.where(search_filter)
+
+        query = query.offset(skip).limit(limit)
+
+        result = await self.db.execute(query)
         return result.scalars().all()
 
     async def update_chat_member(self, member_id: int, member_data: ChatMemberUpdate) -> Optional[ChatMember]:

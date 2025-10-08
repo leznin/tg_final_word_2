@@ -149,12 +149,14 @@ export interface ChatMember {
   }>;
 }
 
-export const useChatMembers = (chatId: string, skip: number = 0, limit: number = 30) => {
+export const useChatMembers = (chatId: string, search: string = '', page: number = 1, pageSize: number = 30) => {
+  const skip = (page - 1) * pageSize;
+
   return useQuery({
-    queryKey: ['chat-members', chatId, skip, limit],
-    queryFn: async (): Promise<ChatMember[]> => {
+    queryKey: ['chat-members', chatId, search, page, pageSize],
+    queryFn: async (): Promise<{ members: ChatMember[]; total: number }> => {
       const response = await api.get(`/chat-members/chat/${chatId}`, {
-        params: { skip, limit }
+        params: { skip, limit: pageSize, search: search || undefined }
       });
       return response.data;
     },

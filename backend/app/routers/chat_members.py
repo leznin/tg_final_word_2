@@ -18,13 +18,14 @@ async def get_chat_members(
     chat_id: str,
     skip: int = 0,
     limit: int = 30,
+    search: str = "",
     db: AsyncSession = Depends(get_db)
 ):
     """Get all members of a specific chat with their group memberships"""
     from app.services.chats import ChatService
     from app.models.chats import Chat
     from app.models.chat_members import ChatMember
-    from sqlalchemy import select, func
+    from sqlalchemy import select, func, or_, and_
 
     member_service = ChatMemberService(db)
     chat_service = ChatService(db)
@@ -58,8 +59,24 @@ async def get_chat_members(
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    # Get chat members with pagination
-    members = await member_service.get_chat_members(actual_chat_id, skip, limit)
+    # Get total count for pagination
+    total_query = select(func.count(ChatMember.id)).where(ChatMember.chat_id == actual_chat_id)
+
+    # Add search conditions if search parameter is provided
+    if search:
+        search_filter = or_(
+            ChatMember.first_name.ilike(f"%{search}%"),
+            ChatMember.last_name.ilike(f"%{search}%"),
+            ChatMember.username.ilike(f"%{search}%"),
+            func.cast(ChatMember.telegram_user_id, func.String).ilike(f"%{search}%")
+        )
+        total_query = total_query.where(search_filter)
+
+    total_result = await db.execute(total_query)
+    total = total_result.scalar()
+
+    # Get chat members with pagination and search
+    members = await member_service.get_chat_members_with_search(actual_chat_id, skip, limit, search)
 
     # Get group memberships for each member
     members_data = []
@@ -111,7 +128,10 @@ async def get_chat_members(
         }
         members_data.append(member_data)
 
-    return members_data
+    return {
+        "members": members_data,
+        "total": total
+    }
 
 
 @router.get("/chat/{chat_id}/count")

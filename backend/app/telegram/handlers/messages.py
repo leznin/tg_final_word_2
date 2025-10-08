@@ -157,15 +157,25 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
         print(f"Message {message.message_id} from chat {chat.id} not found in database")
         return
 
-    # Check if user is a moderator in this chat
-    is_moderator = await moderator_service.moderator_service.is_user_moderator(chat.id, message.from_user.id)
+    # Check if user is a moderator in this chat or if message is sent anonymously by chat administration
+    is_moderator = False
+    is_anonymous_admin = False
+
+    # Check if message is sent anonymously by chat administration (sender_chat present and matches current chat)
+    if hasattr(message, 'sender_chat') and message.sender_chat and message.sender_chat.id == message.chat.id:
+        is_anonymous_admin = True
+        print(f"Message {message.message_id} is sent anonymously by chat administration in chat {chat.id}, allowing edit")
+    else:
+        # Check if user is a moderator
+        is_moderator = await moderator_service.moderator_service.is_user_moderator(chat.id, message.from_user.id)
 
     # Check if editing is allowed and within timeout
     should_delete_and_notify = False
 
-    if is_moderator:
-        # Moderators can always edit messages in their chats
-        print(f"User {message.from_user.id} is a moderator in chat {chat.id}, allowing edit")
+    if is_moderator or is_anonymous_admin:
+        # Moderators and anonymous admin messages can always edit messages in their chats
+        if is_moderator:
+            print(f"User {message.from_user.id} is a moderator in chat {chat.id}, allowing edit")
         return
     elif chat.message_edit_timeout_minutes is None:
         # Editing is completely disabled for this chat

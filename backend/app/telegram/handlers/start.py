@@ -118,6 +118,36 @@ async def handle_my_chat_member(update: types.ChatMemberUpdated, db: AsyncSessio
         # Bot permissions were changed (bot remains admin/creator)
         elif (old_status in ['administrator', 'creator'] and
               new_status in ['administrator', 'creator']):
+            # Check if chat exists in database, if not - create it
+            existing_chat = await chat_service.get_chat_by_telegram_id(update.chat.id)
+            if not existing_chat and update.from_user:
+                # Chat doesn't exist, create it with the user who changed permissions
+                user = await user_service.create_or_update_telegram_user(
+                    TelegramUserData(
+                        id=update.from_user.id,
+                        is_bot=update.from_user.is_bot,
+                        first_name=update.from_user.first_name,
+                        last_name=update.from_user.last_name,
+                        username=update.from_user.username,
+                        language_code=getattr(update.from_user, 'language_code', None),
+                        is_premium=getattr(update.from_user, 'is_premium', None),
+                        added_to_attachment_menu=getattr(update.from_user, 'added_to_attachment_menu', None),
+                        can_join_groups=getattr(update.from_user, 'can_join_groups', None),
+                        can_read_all_group_messages=getattr(update.from_user, 'can_read_all_group_messages', None),
+                        supports_inline_queries=getattr(update.from_user, 'supports_inline_queries', None)
+                    )
+                )
+
+                # Save chat information
+                chat_data = TelegramChatData(
+                    id=update.chat.id,
+                    type=update.chat.type,
+                    title=getattr(update.chat, 'title', None),
+                    username=getattr(update.chat, 'username', None)
+                )
+
+                await chat_service.create_or_update_chat_from_telegram(chat_data, user.id)
+
             # Extract and update bot permissions
             bot_permissions = extract_bot_permissions(update.new_chat_member)
             if bot_permissions:

@@ -12,6 +12,7 @@ from app.services.users import UserService
 from app.services.chats import ChatService
 from app.schemas.users import TelegramUserData
 from app.schemas.chats import TelegramChatData
+from aiogram.types import ChatMemberAdministrator, ChatMemberOwner
 
 # Create router for start handler
 start_router = Router()
@@ -19,6 +20,38 @@ start_router = Router()
 
 # Create router for member status handler
 member_router = Router()
+
+
+def extract_bot_permissions(chat_member) -> dict:
+    """
+    Extract bot permissions from ChatMemberAdministrator or ChatMemberOwner object
+    """
+    if isinstance(chat_member, (ChatMemberAdministrator, ChatMemberOwner)):
+        return {
+            'can_send_messages': bool(getattr(chat_member, 'can_send_messages', False)),
+            'can_send_audios': bool(getattr(chat_member, 'can_send_audios', False)),
+            'can_send_documents': bool(getattr(chat_member, 'can_send_documents', False)),
+            'can_send_photos': bool(getattr(chat_member, 'can_send_photos', False)),
+            'can_send_videos': bool(getattr(chat_member, 'can_send_videos', False)),
+            'can_send_video_notes': bool(getattr(chat_member, 'can_send_video_notes', False)),
+            'can_send_voice_notes': bool(getattr(chat_member, 'can_send_voice_notes', False)),
+            'can_send_polls': bool(getattr(chat_member, 'can_send_polls', False)),
+            'can_send_other_messages': bool(getattr(chat_member, 'can_send_other_messages', False)),
+            'can_add_web_page_previews': bool(getattr(chat_member, 'can_add_web_page_previews', False)),
+            'can_change_info': bool(getattr(chat_member, 'can_change_info', False)),
+            'can_invite_users': bool(getattr(chat_member, 'can_invite_users', False)),
+            'can_pin_messages': bool(getattr(chat_member, 'can_pin_messages', False)),
+            'can_manage_topics': bool(getattr(chat_member, 'can_manage_topics', False)),
+            'can_delete_messages': bool(getattr(chat_member, 'can_delete_messages', False)),
+            'can_manage_video_chats': bool(getattr(chat_member, 'can_manage_video_chats', False)),
+            'can_restrict_members': bool(getattr(chat_member, 'can_restrict_members', False)),
+            'can_promote_members': bool(getattr(chat_member, 'can_promote_members', False)),
+            'can_post_messages': getattr(chat_member, 'can_post_messages', None),
+            'can_edit_messages': getattr(chat_member, 'can_edit_messages', None),
+            'is_anonymous': bool(getattr(chat_member, 'is_anonymous', False)),
+            'custom_title': getattr(chat_member, 'custom_title', None),
+        }
+    return {}
 
 
 @member_router.my_chat_member()
@@ -75,7 +108,20 @@ async def handle_my_chat_member(update: types.ChatMemberUpdated, db: AsyncSessio
                 username=getattr(update.chat, 'username', None)
             )
 
-            await chat_service.create_or_update_chat_from_telegram(chat_data, user.id)
+            chat = await chat_service.create_or_update_chat_from_telegram(chat_data, user.id)
+
+            # Save bot permissions
+            bot_permissions = extract_bot_permissions(update.new_chat_member)
+            if bot_permissions:
+                await chat_service.update_bot_permissions(update.chat.id, bot_permissions)
+
+        # Bot permissions were changed (bot remains admin/creator)
+        elif (old_status in ['administrator', 'creator'] and
+              new_status in ['administrator', 'creator']):
+            # Extract and update bot permissions
+            bot_permissions = extract_bot_permissions(update.new_chat_member)
+            if bot_permissions:
+                await chat_service.update_bot_permissions(update.chat.id, bot_permissions)
 
         # Bot was removed from chat
         elif (old_status in ['administrator', 'creator', 'member'] and

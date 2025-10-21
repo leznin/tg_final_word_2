@@ -247,3 +247,16 @@ class ChatService:
             result.append(chat_data)
 
         return result
+
+    async def update_bot_permissions(self, telegram_chat_id: int, bot_permissions: dict) -> bool:
+        """Update bot permissions for a chat"""
+        db_chat = await self.get_chat_by_telegram_id(telegram_chat_id)
+        if not db_chat:
+            return False
+
+        db_chat.bot_permissions = bot_permissions
+        db_chat.last_info_update = func.now()
+
+        await self.db.commit()
+        await self.db.refresh(db_chat)
+        return True

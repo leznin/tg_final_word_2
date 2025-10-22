@@ -105,22 +105,24 @@ async def get_chat_members(
                 'chat_type': row.chat_type
             })
 
+        # Get user data from the joined telegram_user
+        user = member.telegram_user
         member_data = {
             'id': member.id,
             'chat_id': member.chat_id,
             'telegram_user_id': member.telegram_user_id,
-            'is_bot': member.is_bot,
-            'first_name': member.first_name,
-            'last_name': member.last_name,
-            'username': member.username,
-            'language_code': member.language_code,
-            'is_premium': member.is_premium,
-            'added_to_attachment_menu': member.added_to_attachment_menu,
-            'can_join_groups': member.can_join_groups,
-            'can_read_all_group_messages': member.can_read_all_group_messages,
-            'supports_inline_queries': member.supports_inline_queries,
-            'can_connect_to_business': member.can_connect_to_business,
-            'has_main_web_app': member.has_main_web_app,
+            'is_bot': user.is_bot if user else False,
+            'first_name': user.first_name if user else None,
+            'last_name': user.last_name if user else None,
+            'username': user.username if user else None,
+            'language_code': user.language_code if user else None,
+            'is_premium': user.is_premium if user else None,
+            'added_to_attachment_menu': user.added_to_attachment_menu if user else None,
+            'can_join_groups': user.can_join_groups if user else None,
+            'can_read_all_group_messages': user.can_read_all_group_messages if user else None,
+            'supports_inline_queries': user.supports_inline_queries if user else None,
+            'can_connect_to_business': user.can_connect_to_business if user else None,
+            'has_main_web_app': user.has_main_web_app if user else None,
             'joined_at': member.joined_at.isoformat() if member.joined_at else None,
             'created_at': member.created_at.isoformat() if member.created_at else None,
             'updated_at': member.updated_at.isoformat() if member.updated_at else None,

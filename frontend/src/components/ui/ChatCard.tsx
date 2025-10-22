@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Hash, Radio, Users, Clock, User, Calendar, Shield, ShieldCheck, Star, AlertTriangle } from 'lucide-react';
+import { MessageSquare, Hash, Radio, Users, Clock, User, Calendar, Shield, ShieldCheck, Star, AlertTriangle, EyeOff } from 'lucide-react';
 import { Chat } from '../../types';
 
 interface ChatCardProps {
@@ -41,9 +41,20 @@ export const ChatCard: React.FC<ChatCardProps> = ({ chat, onClick }) => {
 
   return (
     <div
-      className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-gray-300 min-h-[280px] flex flex-col"
+      className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-gray-300 min-h-[280px] flex flex-col relative ${
+        !chat.is_active ? 'opacity-60' : ''
+      }`}
       onClick={onClick}
     >
+      {/* Inactive overlay indicator */}
+      {!chat.is_active && (
+        <div className="absolute top-2 right-2 z-10">
+          <div className="flex items-center space-x-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+            <EyeOff className="h-3 w-3" />
+            <span>Неактивен</span>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-start justify-between mb-3 flex-shrink-0">
         <div className="flex items-center space-x-3 min-w-0 flex-1">

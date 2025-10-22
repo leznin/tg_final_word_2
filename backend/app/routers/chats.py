@@ -20,11 +20,12 @@ router = APIRouter()
 async def get_chats(
     skip: int = 0,
     limit: int = 100,
+    include_inactive: bool = True,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all active chats (groups and supergroups) with linked channel information"""
+    """Get all chats (groups and supergroups) with linked channel information"""
     chat_service = ChatService(db)
-    chats = await chat_service.get_chats_with_linked_channels_info(skip, limit)
+    chats = await chat_service.get_chats_with_linked_channels_info(skip, limit, include_inactive)
 
     return {"chats": chats}
 

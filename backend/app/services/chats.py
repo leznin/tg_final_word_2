@@ -167,13 +167,17 @@ class ChatService:
         )
         return result.scalars().all()
 
-    async def get_chats_with_linked_channels_info(self, skip: int = 0, limit: int = 100) -> List[ChatWithLinkedChannelResponse]:
-        """Get all active chats (groups and supergroups) with linked channel information including admin and moderators"""
+    async def get_chats_with_linked_channels_info(self, skip: int = 0, limit: int = 100, include_inactive: bool = False) -> List[ChatWithLinkedChannelResponse]:
+        """Get all chats (groups and supergroups) with linked channel information including admin and moderators"""
         # Get all chats that are groups or supergroups
+        query = select(Chat).where(Chat.chat_type.in_(['group', 'supergroup']))
+
+        # Filter by active status if include_inactive is False
+        if not include_inactive:
+            query = query.where(Chat.is_active == True)
+
         chats_result = await self.db.execute(
-            select(Chat)
-            .where(Chat.is_active == True)
-            .where(Chat.chat_type.in_(['group', 'supergroup']))
+            query
             .offset(skip)
             .limit(limit)
         )

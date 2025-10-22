@@ -39,6 +39,7 @@ from app.models.chat_subscriptions import ChatSubscription
 
 # Import TelegramUser after Base is created to avoid circular import
 from app.models.telegram_users import TelegramUser
+from app.models.telegram_user_history import TelegramUserHistory
 
 # Create async session factory
 async_session = async_sessionmaker(

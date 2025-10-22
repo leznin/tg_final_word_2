@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from typing import Optional
 from app.models.telegram_users import TelegramUser
+from app.models.telegram_user_history import TelegramUserHistory
 from app.schemas.telegram_users import TelegramUserCreate, TelegramUserUpdate, TelegramUserData
 
 
@@ -41,12 +42,28 @@ class TelegramUserService:
         await self.db.refresh(db_user)
         return db_user
 
+    async def _record_history_change(self, telegram_user_id: int, field_name: str, old_value: Optional[str], new_value: Optional[str]) -> None:
+        """Record a change in telegram user history if the value actually changed"""
+        if old_value != new_value:
+            history_entry = TelegramUserHistory(
+                telegram_user_id=telegram_user_id,
+                field_name=field_name,
+                old_value=old_value,
+                new_value=new_value
+            )
+            self.db.add(history_entry)
+
     async def create_or_update_user_from_telegram(self, telegram_user_data: TelegramUserData) -> TelegramUser:
         """Create or update telegram user from Telegram API data"""
         # Try to find existing user
         db_user = await self.get_telegram_user(telegram_user_data.telegram_user_id)
 
         if db_user:
+            # Record history changes for tracked fields
+            await self._record_history_change(db_user.telegram_user_id, 'first_name', db_user.first_name, telegram_user_data.first_name)
+            await self._record_history_change(db_user.telegram_user_id, 'last_name', db_user.last_name, telegram_user_data.last_name)
+            await self._record_history_change(db_user.telegram_user_id, 'username', db_user.username, telegram_user_data.username)
+
             # Update existing user - explicitly set fields
             db_user.is_bot = telegram_user_data.is_bot
             db_user.first_name = telegram_user_data.first_name

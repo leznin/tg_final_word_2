@@ -37,6 +37,9 @@ from app.models.openrouter import OpenRouterSettings
 from app.models.subscription_prices import SubscriptionPrice
 from app.models.chat_subscriptions import ChatSubscription
 
+# Import TelegramUser after Base is created to avoid circular import
+from app.models.telegram_users import TelegramUser
+
 # Create async session factory
 async_session = async_sessionmaker(
     engine,

@@ -14,7 +14,7 @@ from app.services.openrouter import OpenRouterService
 from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.telegram.services.chat_linking import ChatLinkingService
 from app.telegram.services.moderator_management import ModeratorManagementService
-from app.utils.account_age import format_account_age
+from app.utils.account_age import format_account_age, get_account_creation_date
 from app.telegram.states import ChatManagementStates
 from app.telegram.keyboards.chat_management import get_cancel_keyboard, get_back_to_chats_keyboard
 from app.telegram.utils.constants import ChannelLinkingMessages, MessageEditingMessages, ButtonTexts, MessageHandlerMessages
@@ -338,41 +338,43 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
                         user_name=user_name, user_id=user_id
                     )
 
-                    # Get detailed user information from chat_members table (only if subscription is active)
+                    # Get detailed user information from telegram_users table via chat_members (only if subscription is active)
                     chat_member = await chat_member_service.get_chat_member_by_telegram_id(chat.id, user_id)
-                    if chat_member:
+                    if chat_member and chat_member.telegram_user:
+                        telegram_user = chat_member.telegram_user
+
                         # Add username if available
-                        if chat_member.username:
+                        if telegram_user.username:
                             edited_info += MessageEditingMessages.USERNAME_TEMPLATE.format(
-                                username=chat_member.username
+                                username=telegram_user.username
                             )
 
                         # Add full name details
                         full_name_parts = []
-                        if chat_member.first_name:
-                            full_name_parts.append(chat_member.first_name)
-                        if chat_member.last_name:
-                            full_name_parts.append(chat_member.last_name)
+                        if telegram_user.first_name:
+                            full_name_parts.append(telegram_user.first_name)
+                        if telegram_user.last_name:
+                            full_name_parts.append(telegram_user.last_name)
                         if full_name_parts:
                             edited_info += MessageEditingMessages.FULL_NAME_TEMPLATE.format(
                                 full_name=" ".join(full_name_parts)
                             )
 
                         # Add language if available
-                        if chat_member.language_code:
+                        if telegram_user.language_code:
                             edited_info += MessageEditingMessages.LANGUAGE_TEMPLATE.format(
-                                language=chat_member.language_code.upper()
+                                language=telegram_user.language_code.upper()
                             )
 
                         # Add premium status
-                        premium_status = "Да" if chat_member.is_premium else "Нет"
+                        premium_status = "Да" if telegram_user.is_premium else "Нет"
                         edited_info += MessageEditingMessages.PREMIUM_TEMPLATE.format(
                             premium_status=premium_status
                         )
 
                         # Add account creation date if available
-                        if chat_member.account_creation_date:
-                            creation_date = chat_member.account_creation_date.strftime('%d.%m.%Y')
+                        if telegram_user.account_creation_date:
+                            creation_date = telegram_user.account_creation_date.strftime('%d.%m.%Y')
                             edited_info += MessageEditingMessages.ACCOUNT_CREATION_DATE_TEMPLATE.format(
                                 creation_date=creation_date
                             )
@@ -586,7 +588,7 @@ async def handle_new_message(message: types.Message, db: AsyncSession) -> None:
     from app.services.chats import ChatService
     from app.services.chat_members import ChatMemberService
     from app.services.messages import MessageService
-    from app.schemas.chat_members import TelegramUserData
+    from app.schemas.telegram_users import TelegramUserData
     from app.schemas.messages import TelegramMessageData
 
     chat_service = ChatService(db)
@@ -598,11 +600,35 @@ async def handle_new_message(message: types.Message, db: AsyncSession) -> None:
     if not chat:
         return
 
+    # Handle user leaving the chat
+    left_user = None
+    if hasattr(message, 'left_chat_member') and message.left_chat_member:
+        left_user = message.left_chat_member
+    elif hasattr(message, 'left_chat_participant') and message.left_chat_participant:
+        left_user = message.left_chat_participant
+
+    if left_user:
+        try:
+            # User left the chat voluntarily
+            success = await member_service.remove_member_from_chat(
+                chat_id=chat.id,
+                telegram_user_id=left_user.id,
+                reason='left'
+            )
+            if success:
+                print(f"✅ User {left_user.id} left chat {chat.id}")
+            else:
+                print(f"⚠️  Failed to update status for user {left_user.id} in chat {chat.id}")
+        except Exception as e:
+            print(f"Error processing user left event {left_user.id}: {e}")
+        return  # Don't process this as a regular message
+
     # Log chat member if user sent the message
     if message.from_user:
         try:
+            account_creation_date = await get_account_creation_date(message.from_user.id)
             telegram_user_data = TelegramUserData(
-                id=message.from_user.id,
+                telegram_user_id=message.from_user.id,
                 is_bot=message.from_user.is_bot,
                 first_name=message.from_user.first_name,
                 last_name=message.from_user.last_name,
@@ -614,7 +640,8 @@ async def handle_new_message(message: types.Message, db: AsyncSession) -> None:
                 can_read_all_group_messages=message.from_user.can_read_all_group_messages,
                 supports_inline_queries=message.from_user.supports_inline_queries,
                 can_connect_to_business=message.from_user.can_connect_to_business,
-                has_main_web_app=message.from_user.has_main_web_app
+                has_main_web_app=message.from_user.has_main_web_app,
+                account_creation_date=account_creation_date
             )
 
             # Create or update member in database

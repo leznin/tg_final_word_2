@@ -3,28 +3,28 @@ Chat members Pydantic schemas
 """
 
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
+from enum import Enum
+
+if TYPE_CHECKING:
+    from .telegram_users import TelegramUserResponse
+
+
+class MemberStatus(str, Enum):
+    ACTIVE = "active"
+    LEFT = "left"
+    BANNED = "banned"
+    KICKED = "kicked"
 
 
 class ChatMemberBase(BaseModel):
     """Base chat member schema"""
     chat_id: int
     telegram_user_id: int
-    is_bot: Optional[bool] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    username: Optional[str] = None
-    language_code: Optional[str] = None
-    is_premium: Optional[bool] = None
-    added_to_attachment_menu: Optional[bool] = None
-    can_join_groups: Optional[bool] = None
-    can_read_all_group_messages: Optional[bool] = None
-    supports_inline_queries: Optional[bool] = None
-    can_connect_to_business: Optional[bool] = None
-    has_main_web_app: Optional[bool] = None
-    account_creation_date: Optional[datetime] = None
+    status: MemberStatus = MemberStatus.ACTIVE
     joined_at: Optional[datetime] = None
+    left_at: Optional[datetime] = None
 
 
 class ChatMemberCreate(ChatMemberBase):
@@ -34,18 +34,9 @@ class ChatMemberCreate(ChatMemberBase):
 
 class ChatMemberUpdate(BaseModel):
     """Schema for updating a chat member"""
-    is_bot: Optional[bool] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    username: Optional[str] = None
-    language_code: Optional[str] = None
-    is_premium: Optional[bool] = None
-    added_to_attachment_menu: Optional[bool] = None
-    can_join_groups: Optional[bool] = None
-    can_read_all_group_messages: Optional[bool] = None
-    supports_inline_queries: Optional[bool] = None
-    can_connect_to_business: Optional[bool] = None
-    has_main_web_app: Optional[bool] = None
+    status: Optional[MemberStatus] = None
+    joined_at: Optional[datetime] = None
+    left_at: Optional[datetime] = None
 
 
 class ChatMemberResponse(ChatMemberBase):
@@ -53,23 +44,7 @@ class ChatMemberResponse(ChatMemberBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    telegram_user: Optional["TelegramUserResponse"] = None
 
     class Config:
         from_attributes = True
-
-
-class TelegramUserData(BaseModel):
-    """Schema for Telegram User data from API"""
-    id: int
-    is_bot: bool
-    first_name: str
-    last_name: Optional[str] = None
-    username: Optional[str] = None
-    language_code: Optional[str] = None
-    is_premium: Optional[bool] = None
-    added_to_attachment_menu: Optional[bool] = None
-    can_join_groups: Optional[bool] = None
-    can_read_all_group_messages: Optional[bool] = None
-    supports_inline_queries: Optional[bool] = None
-    can_connect_to_business: Optional[bool] = None
-    has_main_web_app: Optional[bool] = None

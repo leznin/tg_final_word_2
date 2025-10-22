@@ -15,6 +15,7 @@ from app.telegram.handlers.start import start_router, member_router
 from app.telegram.handlers.messages import message_router
 from app.telegram.handlers.chat_management import chat_management_router
 from app.telegram.handlers.payments import payment_router
+from app.telegram.handlers.chat_member_updates import chat_member_router
 
 
 class TelegramBot:
@@ -50,6 +51,7 @@ class TelegramBot:
         self.dispatcher.include_router(payment_router)
         self.dispatcher.include_router(start_router)
         self.dispatcher.include_router(member_router)
+        self.dispatcher.include_router(chat_member_router)
         self.dispatcher.include_router(message_router)
         self.dispatcher.include_router(chat_management_router)
 

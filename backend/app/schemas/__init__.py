@@ -9,7 +9,11 @@ from app.schemas.chats import (
 )
 from app.schemas.chat_members import (
     ChatMemberBase, ChatMemberCreate, ChatMemberUpdate,
-    ChatMemberResponse, TelegramUserData
+    ChatMemberResponse, MemberStatus
+)
+from app.schemas.telegram_users import (
+    TelegramUserData, TelegramUserBase, TelegramUserCreate,
+    TelegramUserUpdate, TelegramUserResponse
 )
 from app.schemas.messages import (
     MessageBase, MessageCreate, MessageUpdate,
@@ -26,7 +30,9 @@ __all__ = [
     "TelegramChatData", "ChatBase", "ChatCreate", "ChatUpdate",
     "ChatResponse", "ChatWithUserResponse",
     "ChatMemberBase", "ChatMemberCreate", "ChatMemberUpdate",
-    "ChatMemberResponse", "TelegramUserData",
+    "ChatMemberResponse", "MemberStatus",
+    "TelegramUserData", "TelegramUserBase", "TelegramUserCreate",
+    "TelegramUserUpdate", "TelegramUserResponse",
     "MessageBase", "MessageCreate", "MessageUpdate",
     "MessageResponse", "TelegramMessageData",
     "OpenRouterBase", "OpenRouterCreate", "OpenRouterUpdate",

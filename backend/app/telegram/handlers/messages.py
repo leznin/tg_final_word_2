@@ -23,6 +23,8 @@ from app.telegram.utils.constants import ChannelLinkingMessages, MessageEditingM
 message_router = Router()
 
 
+
+
 async def send_media_notification_to_channel(bot: Bot, channel_chat_id: int, message: types.Message, notification_text: str) -> None:
     """
     Send media from edited message to linked channel with notification text as caption
@@ -585,7 +587,42 @@ async def handle_new_message(message: types.Message, db: AsyncSession) -> None:
     if message.chat.type not in ['group', 'supergroup']:
         return
 
-    from app.services.chats import ChatService
+    # Handle chat information updates (title, description changes)
+    has_chat_update = False
+    update_data = {}
+
+    # Check for new chat title
+    if hasattr(message, 'new_chat_title') and message.new_chat_title:
+        has_chat_update = True
+        update_data['title'] = message.new_chat_title
+        print(f"Chat {message.chat.id} title updated to: {message.new_chat_title}")
+
+    # Check for new chat description
+    if hasattr(message, 'new_chat_description'):
+        has_chat_update = True
+        update_data['description'] = message.new_chat_description
+        print(f"Chat {message.chat.id} description updated")
+
+    # Update chat information in database if there were changes
+    if has_chat_update:
+        chat_service = ChatService(db)
+        chat = await chat_service.get_chat_by_telegram_id(message.chat.id)
+
+        if chat:
+            from app.schemas.chats import ChatUpdate
+            chat_update = ChatUpdate(**update_data)
+            updated_chat = await chat_service.update_chat(chat.id, chat_update)
+
+            if updated_chat:
+                print(f"Successfully updated chat {chat.id} information in database")
+            else:
+                print(f"Failed to update chat {chat.id} information in database")
+        else:
+            print(f"Chat {message.chat.id} not found in database for info update")
+
+        # Don't process this as a regular message if it was a chat update
+        return
+
     from app.services.chat_members import ChatMemberService
     from app.services.messages import MessageService
     from app.schemas.telegram_users import TelegramUserData

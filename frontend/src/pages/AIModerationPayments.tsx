@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Calculator, DollarSign, Star, Percent, Zap, Edit, Plus, Save, X, TrendingUp, Calendar, Settings } from 'lucide-react';
 import { useSubscriptionPrices } from '../hooks/useSubscriptionPrices';
 import { Loading } from '../components/ui/Loading';
+import { api } from '../utils/api';
 
 interface SubscriptionPrice {
   id: number;
@@ -75,24 +76,21 @@ export const AIModerationPayments: React.FC = () => {
 
     try {
       const existingPrice = editing.type === 'month' ? monthPrice : yearPrice;
-      const url = existingPrice ? `/api/subscription-prices/${existingPrice.id}` : '/api/subscription-prices';
-      const method = existingPrice ? 'PUT' : 'POST';
+      const data = {
+        subscription_type: editing.type,
+        price_stars: editing.value,
+        currency: 'XTR'
+      };
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscription_type: editing.type,
-          price_stars: editing.value,
-          currency: 'XTR'
-        }),
-      });
-
-      if (response.ok) {
-        refetch();
-        setEditing({ type: null, value: 0 });
-        alert(`Цена ${editing.type === 'month' ? 'месячной' : 'годовой'} подписки обновлена!`);
+      if (existingPrice) {
+        await api.put(`/subscription-prices/${existingPrice.id}`, data);
+      } else {
+        await api.post('/subscription-prices/', data);
       }
+
+      refetch();
+      setEditing({ type: null, value: 0 });
+      alert(`Цена ${editing.type === 'month' ? 'месячной' : 'годовой'} подписки обновлена!`);
     } catch (error) {
       alert('Ошибка при сохранении цены');
     }
@@ -101,18 +99,12 @@ export const AIModerationPayments: React.FC = () => {
   // Handle creating new price
   const createNewPrice = async () => {
     try {
-      const response = await fetch('/api/subscription-prices/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPriceData),
-      });
+      await api.post('/subscription-prices/', newPriceData);
 
-      if (response.ok) {
-        refetch();
-        setShowAddForm(false);
-        setNewPriceData({ subscription_type: 'month', price_stars: 10, currency: 'XTR' });
-        alert('Цена добавлена успешно!');
-      }
+      refetch();
+      setShowAddForm(false);
+      setNewPriceData({ subscription_type: 'month', price_stars: 10, currency: 'XTR' });
+      alert('Цена добавлена успешно!');
     } catch (error) {
       alert('Ошибка при добавлении цены');
     }
@@ -122,65 +114,33 @@ export const AIModerationPayments: React.FC = () => {
     try {
       // Update monthly price if it has changed
       if (monthPrice && calculator.monthlyPrice !== monthPrice.price_stars) {
-        const response = await fetch(`/api/subscription-prices/${monthPrice.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            price_stars: calculator.monthlyPrice,
-            subscription_type: 'month',
-            currency: 'XTR'
-          }),
+        await api.put(`/subscription-prices/${monthPrice.id}`, {
+          price_stars: calculator.monthlyPrice,
+          subscription_type: 'month',
+          currency: 'XTR'
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to update monthly price');
-        }
       } else if (!monthPrice && calculator.monthlyPrice > 0) {
         // Create monthly price if it doesn't exist
-        const response = await fetch('/api/subscription-prices/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subscription_type: 'month',
-            price_stars: calculator.monthlyPrice,
-            currency: 'XTR'
-          }),
+        await api.post('/subscription-prices/', {
+          subscription_type: 'month',
+          price_stars: calculator.monthlyPrice,
+          currency: 'XTR'
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to create monthly price');
-        }
       }
 
       // Update or create yearly price
       if (yearPrice && calculatedYearlyPrice !== yearPrice.price_stars) {
-        const response = await fetch(`/api/subscription-prices/${yearPrice.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            price_stars: calculatedYearlyPrice,
-            subscription_type: 'year',
-            currency: 'XTR'
-          }),
+        await api.put(`/subscription-prices/${yearPrice.id}`, {
+          price_stars: calculatedYearlyPrice,
+          subscription_type: 'year',
+          currency: 'XTR'
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to update yearly price');
-        }
       } else if (!yearPrice && calculatedYearlyPrice > 0) {
-        const response = await fetch('/api/subscription-prices/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subscription_type: 'year',
-            price_stars: calculatedYearlyPrice,
-            currency: 'XTR'
-          }),
+        await api.post('/subscription-prices/', {
+          subscription_type: 'year',
+          price_stars: calculatedYearlyPrice,
+          currency: 'XTR'
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to create yearly price');
-        }
       }
 
       // Refresh data and show success message

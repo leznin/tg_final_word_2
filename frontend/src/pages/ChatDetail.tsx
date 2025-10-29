@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Radio, Settings, Calendar, User, Link, Unlink, Plus, Trash2, Clock, MessageSquare, FileText, ExternalLink, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Users, Radio, Settings, Calendar, User, Link, Unlink, Plus, Trash2, Clock, MessageSquare, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { StatsCard } from '../components/ui/StatsCard';
@@ -22,11 +22,24 @@ export const ChatDetail: React.FC = () => {
   const [memberSearch, setMemberSearch] = useState('');
   const [memberPage, setMemberPage] = useState(1);
   const [memberPageSize] = useState(30);
+  const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set());
 
   // Reset page when search changes
   useEffect(() => {
     setMemberPage(1);
   }, [memberSearch]);
+
+  const toggleMemberExpanded = (memberId: number) => {
+    setExpandedMembers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(memberId)) {
+        newSet.delete(memberId);
+      } else {
+        newSet.add(memberId);
+      }
+      return newSet;
+    });
+  };
 
   // Hooks for channel linking
   const { data: availableChannels } = useAvailableChannels(data?.chat.admin_user_id || 0);
@@ -696,49 +709,112 @@ export const ChatDetail: React.FC = () => {
             ) : membersData && membersData.members && membersData.members.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
-                  {membersData.members.map((member) => (
-                    <div key={member.id} className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-3 border border-green-200 hover:shadow-md hover:from-green-100 hover:to-green-200 transition-all duration-200">
-                      <div className="flex items-start space-x-2">
-                        <div className="flex-shrink-0">
-                          {member.is_bot ? (
-                            <div className="w-6 h-6 bg-red-200 rounded-full flex items-center justify-center">
-                              <Settings className="w-2.5 h-2.5 text-red-700" />
+                  {membersData.members.map((member) => {
+                    const isExpanded = expandedMembers.has(member.id);
+                    return (
+                      <div key={member.id} className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200 hover:shadow-md hover:from-green-100 hover:to-green-200 transition-all duration-200">
+                        <div className="p-3">
+                          <div className="flex items-start space-x-2">
+                            <div className="flex-shrink-0">
+                              {member.is_bot ? (
+                                <div className="w-6 h-6 bg-red-200 rounded-full flex items-center justify-center">
+                                  <Settings className="w-2.5 h-2.5 text-red-700" />
+                                </div>
+                              ) : (
+                                <div className="w-6 h-6 bg-green-200 rounded-full flex items-center justify-center">
+                                  <User className="w-2.5 h-2.5 text-green-700" />
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="w-6 h-6 bg-green-200 rounded-full flex items-center justify-center">
-                              <User className="w-2.5 h-2.5 text-green-700" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center space-x-1 flex-1 min-w-0">
+                                  <h4 className="text-xs font-medium text-green-900 truncate">
+                                    {member.first_name || ''} {member.last_name || ''} {!member.first_name && !member.last_name && `ID: ${member.telegram_user_id}`}
+                                  </h4>
+                                  {member.is_bot && (
+                                    <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                      Бот
+                                    </span>
+                                  )}
+                                  {member.is_premium && (
+                                    <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                      ⭐
+                                    </span>
+                                  )}
+                                </div>
+                                {member.history && member.history.length > 0 && (
+                                  <button
+                                    onClick={() => toggleMemberExpanded(member.id)}
+                                    className="flex-shrink-0 p-1 hover:bg-green-200 rounded transition-colors duration-200"
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronUp className="w-3 h-3 text-green-700" />
+                                    ) : (
+                                      <ChevronDown className="w-3 h-3 text-green-700" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                              <div className="text-xs text-green-700 mb-1">
+                                <span className="font-mono">ID: {member.telegram_user_id}</span>
+                                {member.username && <span className="ml-1">@{member.username}</span>}
+                              </div>
+                              {member.joined_at && (
+                                <div className="text-xs text-green-600">
+                                  Присоединился: {new Date(member.joined_at).toLocaleDateString('ru-RU')}
+                                </div>
+                              )}
+                              {member.history && member.history.length > 0 && (
+                                <div className="text-xs text-green-600 mt-1">
+                                  <History className="w-3 h-3 inline mr-1" />
+                                  {member.history.length} изменени{member.history.length === 1 ? 'е' : member.history.length < 5 ? 'я' : 'й'}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-1 mb-1">
-                            <h4 className="text-xs font-medium text-green-900 truncate">
-                              {member.first_name || ''} {member.last_name || ''} {!member.first_name && !member.last_name && `ID: ${member.telegram_user_id}`}
-                            </h4>
-                            {member.is_bot && (
-                              <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                                Бот
-                              </span>
-                            )}
-                            {member.is_premium && (
-                              <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                                ⭐
-                              </span>
-                            )}
                           </div>
-                          <div className="text-xs text-green-700 mb-1">
-                            <span className="font-mono">ID: {member.telegram_user_id}</span>
-                            {member.username && <span className="ml-1">@{member.username}</span>}
-                          </div>
-                          {member.joined_at && (
-                            <div className="text-xs text-green-600">
-                              {new Date(member.joined_at).toLocaleDateString('ru-RU')}
-                            </div>
-                          )}
                         </div>
+
+                        {/* Expanded history section */}
+                        {isExpanded && member.history && member.history.length > 0 && (
+                          <div className="border-t border-green-300 bg-green-25 px-3 py-2">
+                            <div className="text-xs font-medium text-green-900 mb-2">История изменений:</div>
+                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                              {member.history.map((change) => (
+                                <div key={change.id} className="text-xs bg-white rounded p-2 border border-green-200">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <span className="font-medium text-green-900 capitalize">
+                                      {change.field_name === 'first_name' ? 'Имя' :
+                                       change.field_name === 'last_name' ? 'Фамилия' :
+                                       change.field_name === 'username' ? 'Username' : change.field_name}
+                                    </span>
+                                    <span className="text-green-600 text-xs">
+                                      {new Date(change.changed_at).toLocaleDateString('ru-RU')}
+                                    </span>
+                                  </div>
+                                  <div className="text-green-800">
+                                    {change.old_value && change.new_value ? (
+                                      <span>
+                                        <span className="line-through text-red-600">{change.old_value}</span>
+                                        {' → '}
+                                        <span className="text-green-600 font-medium">{change.new_value}</span>
+                                      </span>
+                                    ) : change.new_value ? (
+                                      <span className="text-green-600 font-medium">Установлено: {change.new_value}</span>
+                                    ) : change.old_value ? (
+                                      <span className="text-red-600">Удалено: {change.old_value}</span>
+                                    ) : (
+                                      <span className="text-gray-600">Изменение без данных</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Pagination */}

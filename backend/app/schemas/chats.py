@@ -38,6 +38,7 @@ class ChatUpdate(BaseModel):
     """Schema for updating a chat"""
     title: Optional[str] = None
     username: Optional[str] = None
+    description: Optional[str] = None
     is_active: Optional[bool] = None
     linked_channel_id: Optional[int] = None
     message_edit_timeout_minutes: Optional[int] = Field(None, ge=1, le=1440, description="Minutes allowed for message editing (None = disabled)")

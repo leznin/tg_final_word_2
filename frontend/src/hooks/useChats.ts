@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../utils/api';
-import { Chat, ChatDetailResponse, LinkChannelResponse, ChatModerator, AddModeratorRequest, ModeratorResponse, ChatSubscription, ChatSubscriptionCreate } from '../types';
+import { Chat, ChatDetailResponse, LinkChannelResponse, ChatModerator, AddModeratorRequest, ModeratorResponse, ChatSubscription, ChatSubscriptionCreate, ChatMembersResponse } from '../types';
 
 export const useChats = () => {
   return useQuery({
@@ -123,38 +123,12 @@ export const useRemoveModerator = () => {
   });
 };
 
-export interface ChatMember {
-  id: number;
-  chat_id: number;
-  telegram_user_id: number;
-  is_bot?: boolean;
-  first_name?: string;
-  last_name?: string;
-  username?: string;
-  language_code?: string;
-  is_premium?: boolean;
-  added_to_attachment_menu?: boolean;
-  can_join_groups?: boolean;
-  can_read_all_group_messages?: boolean;
-  supports_inline_queries?: boolean;
-  can_connect_to_business?: boolean;
-  has_main_web_app?: boolean;
-  joined_at?: string;
-  created_at?: string;
-  updated_at?: string;
-  user_groups: Array<{
-    title: string;
-    telegram_chat_id: number;
-    chat_type: string;
-  }>;
-}
-
 export const useChatMembers = (chatId: string, search: string = '', page: number = 1, pageSize: number = 30) => {
   const skip = (page - 1) * pageSize;
 
   return useQuery({
     queryKey: ['chat-members', chatId, search, page, pageSize],
-    queryFn: async (): Promise<{ members: ChatMember[]; total: number }> => {
+    queryFn: async (): Promise<ChatMembersResponse> => {
       const response = await api.get(`/chat-members/chat/${chatId}`, {
         params: { skip, limit: pageSize, search: search || undefined }
       });

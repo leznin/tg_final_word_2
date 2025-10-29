@@ -293,6 +293,47 @@ export interface UserWithChats extends User {
   chats: Chat[];
 }
 
+export interface TelegramUserHistory {
+  id: number;
+  telegram_user_id: number;
+  field_name: string;
+  old_value?: string;
+  new_value?: string;
+  changed_at: string;
+}
+
+export interface ChatMemberWithHistory {
+  id: number;
+  chat_id: number;
+  telegram_user_id: number;
+  is_bot: boolean;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  language_code?: string;
+  is_premium?: boolean;
+  added_to_attachment_menu?: boolean;
+  can_join_groups?: boolean;
+  can_read_all_group_messages?: boolean;
+  supports_inline_queries?: boolean;
+  can_connect_to_business?: boolean;
+  has_main_web_app?: boolean;
+  joined_at?: string;
+  created_at: string;
+  updated_at: string;
+  user_groups: Array<{
+    title: string;
+    telegram_chat_id: number;
+    chat_type: string;
+  }>;
+  history: TelegramUserHistory[];
+}
+
+export interface ChatMembersResponse {
+  members: ChatMemberWithHistory[];
+  total: number;
+}
+
 export interface OpenRouterModel {
   id: string;
   name: string;

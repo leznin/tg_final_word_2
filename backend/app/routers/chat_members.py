@@ -9,6 +9,7 @@ from typing import List
 from app.core.database import get_db
 from app.schemas.chat_members import ChatMemberResponse
 from app.services.chat_members import ChatMemberService
+from app.services.telegram_user_history import TelegramUserHistoryService
 
 router = APIRouter()
 
@@ -29,6 +30,7 @@ async def get_chat_members(
 
     member_service = ChatMemberService(db)
     chat_service = ChatService(db)
+    history_service = TelegramUserHistoryService(db)
 
     # Determine chat by ID type
     try:
@@ -107,6 +109,20 @@ async def get_chat_members(
 
         # Get user data from the joined telegram_user
         user = member.telegram_user
+
+        # Get user history
+        user_history = await history_service.get_user_history(member.telegram_user_id, limit=20)
+        history_data = []
+        for history_entry in user_history:
+            history_data.append({
+                'id': history_entry.id,
+                'telegram_user_id': history_entry.telegram_user_id,
+                'field_name': history_entry.field_name,
+                'old_value': history_entry.old_value,
+                'new_value': history_entry.new_value,
+                'changed_at': history_entry.changed_at.isoformat() if history_entry.changed_at else None
+            })
+
         member_data = {
             'id': member.id,
             'chat_id': member.chat_id,
@@ -126,7 +142,8 @@ async def get_chat_members(
             'joined_at': member.joined_at.isoformat() if member.joined_at else None,
             'created_at': member.created_at.isoformat() if member.created_at else None,
             'updated_at': member.updated_at.isoformat() if member.updated_at else None,
-            'user_groups': user_groups
+            'user_groups': user_groups,
+            'history': history_data
         }
         members_data.append(member_data)
 

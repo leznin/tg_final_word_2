@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-
-const API_BASE_URL = '/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '../utils/api';
 
 export interface SubscriptionPrice {
   id: number;
@@ -16,67 +15,50 @@ export const useSubscriptionPrices = () => {
   return useQuery({
     queryKey: ['subscription-prices'],
     queryFn: async (): Promise<SubscriptionPrice[]> => {
-      const response = await fetch(`${API_BASE_URL}/subscription-prices/`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch subscription prices');
-      }
-      return response.json();
+      const response = await api.get('/subscription-prices/');
+      return response.data;
     },
   });
 };
 
 export const useCreateSubscriptionPrice = () => {
-  return useQuery({
-    queryKey: ['create-subscription-price'],
-    queryFn: async (data: Omit<SubscriptionPrice, 'id' | 'created_at' | 'updated_at'>): Promise<SubscriptionPrice> => {
-      const response = await fetch(`${API_BASE_URL}/subscription-prices/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to create subscription price');
-      }
-      return response.json();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: Omit<SubscriptionPrice, 'id' | 'created_at' | 'updated_at'>): Promise<SubscriptionPrice> => {
+      const response = await api.post('/subscription-prices/', data);
+      return response.data;
     },
-    enabled: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-prices'] });
+    },
   });
 };
 
 export const useUpdateSubscriptionPrice = () => {
-  return useQuery({
-    queryKey: ['update-subscription-price'],
-    queryFn: async ({ id, data }: { id: number; data: Partial<SubscriptionPrice> }): Promise<SubscriptionPrice> => {
-      const response = await fetch(`${API_BASE_URL}/subscription-prices/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to update subscription price');
-      }
-      return response.json();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<SubscriptionPrice> }): Promise<SubscriptionPrice> => {
+      const response = await api.put(`/subscription-prices/${id}`, data);
+      return response.data;
     },
-    enabled: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-prices'] });
+    },
   });
 };
 
 export const useDeleteSubscriptionPrice = () => {
-  return useQuery({
-    queryKey: ['delete-subscription-price'],
-    queryFn: async (id: number): Promise<void> => {
-      const response = await fetch(`${API_BASE_URL}/subscription-prices/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to delete subscription price');
-      }
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number): Promise<void> => {
+      await api.delete(`/subscription-prices/${id}`);
     },
-    enabled: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-prices'] });
+    },
   });
 };
 

@@ -10,11 +10,44 @@ export interface TelegramUserData {
   is_bot?: boolean
 }
 
+export interface TelegramThemeParams {
+  bg_color?: string
+  text_color?: string
+  hint_color?: string
+  link_color?: string
+  button_color?: string
+  button_text_color?: string
+  secondary_bg_color?: string
+  header_bg_color?: string
+  accent_text_color?: string
+  section_bg_color?: string
+  section_header_text_color?: string
+  subtitle_text_color?: string
+  destructive_text_color?: string
+}
+
+export interface TelegramThemeData {
+  colorScheme: 'light' | 'dark'
+  themeParams: TelegramThemeParams
+}
+
 export const useTelegramWebApp = () => {
   const [isReady, setIsReady] = useState(false)
   const [user, setUser] = useState<TelegramUserData | null>(null)
   const [initData, setInitData] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
+  const [theme, setTheme] = useState<TelegramThemeData>({
+    colorScheme: 'light',
+    themeParams: {}
+  })
+
+  const updateTheme = (webApp: any) => {
+    const newTheme: TelegramThemeData = {
+      colorScheme: webApp.colorScheme || 'light',
+      themeParams: webApp.themeParams || {}
+    }
+    setTheme(newTheme)
+  }
 
   useEffect(() => {
     const initializeTelegramWebApp = () => {
@@ -37,6 +70,14 @@ export const useTelegramWebApp = () => {
             setUser(webApp.initDataUnsafe.user)
           } else {
             setError('Пользовательские данные недоступны')
+          }
+
+          // Initialize theme
+          updateTheme(webApp)
+
+          // Listen for theme changes
+          if (webApp.onEvent) {
+            webApp.onEvent('themeChanged', () => updateTheme(webApp))
           }
 
           setIsReady(true)
@@ -113,6 +154,7 @@ export const useTelegramWebApp = () => {
     user,
     initData,
     error,
+    theme,
     closeWebApp,
     showMainButton,
     hideMainButton,

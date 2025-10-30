@@ -3,10 +3,14 @@ import { useTelegramWebApp } from '../hooks/useTelegramWebApp'
 import { useUserSearch } from '../hooks/useUserSearch'
 import { UserSearchResult } from '../types/mini-app'
 import { Loading } from '../components/ui/Loading'
+import { createThemeStyles } from '../utils/themeUtils'
 
 const MiniAppUserSearch: React.FC = () => {
-  const { isReady, user, initData, error: telegramError, hapticFeedback } = useTelegramWebApp()
+  const { isReady, user, initData, error: telegramError, hapticFeedback, theme } = useTelegramWebApp()
   const { verifyUserAsync, searchUsersAsync, isSearching, searchData, verifyData } = useUserSearch()
+
+  // Create theme styles
+  const themeStyles = createThemeStyles(theme)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [isVerified, setIsVerified] = useState(false)
@@ -114,10 +118,10 @@ const MiniAppUserSearch: React.FC = () => {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={themeStyles.container}>
         <div className="text-center">
           <Loading />
-          <p className="mt-4 text-gray-300">Инициализация...</p>
+          <p className="mt-4" style={themeStyles.textSecondary}>Инициализация...</p>
         </div>
       </div>
     )
@@ -125,12 +129,12 @@ const MiniAppUserSearch: React.FC = () => {
 
   if (telegramError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl shadow-2xl p-6 max-w-md w-full text-center">
-          <div className="text-red-400 text-5xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-white mb-2">Ошибка</h2>
-          <p className="text-gray-300">{telegramError}</p>
-          <p className="text-sm text-gray-400 mt-4">
+      <div className="min-h-screen flex items-center justify-center p-4" style={themeStyles.container}>
+        <div className="rounded-xl shadow-2xl p-6 max-w-md w-full text-center" style={themeStyles.card}>
+          <div className="text-5xl mb-4" style={themeStyles.textError}>⚠️</div>
+          <h2 className="text-xl font-semibold mb-2" style={themeStyles.textPrimary}>Ошибка</h2>
+          <p style={themeStyles.textSecondary}>{telegramError}</p>
+          <p className="text-sm mt-4" style={themeStyles.textHint}>
             Это приложение работает только в Telegram
           </p>
         </div>
@@ -140,11 +144,11 @@ const MiniAppUserSearch: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl shadow-2xl p-6 max-w-md w-full text-center">
-          <div className="text-yellow-400 text-5xl mb-4">👤</div>
-          <h2 className="text-xl font-semibold text-white mb-2">Пользователь не найден</h2>
-          <p className="text-gray-300">
+      <div className="min-h-screen flex items-center justify-center p-4" style={themeStyles.container}>
+        <div className="rounded-xl shadow-2xl p-6 max-w-md w-full text-center" style={themeStyles.card}>
+          <div className="text-5xl mb-4" style={themeStyles.textWarning}>👤</div>
+          <h2 className="text-xl font-semibold mb-2" style={themeStyles.textPrimary}>Пользователь не найден</h2>
+          <p style={themeStyles.textSecondary}>
             Не удалось получить данные пользователя из Telegram
           </p>
         </div>
@@ -154,24 +158,24 @@ const MiniAppUserSearch: React.FC = () => {
 
   if (!isVerified) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4" style={themeStyles.container}>
         <div className="text-center">
           <Loading />
-          <p className="mt-4 text-gray-300">Проверка пользователя...</p>
+          <p className="mt-4" style={themeStyles.textSecondary}>Проверка пользователя...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen" style={themeStyles.container}>
       {/* Header */}
-      <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 shadow-lg">
+      <div className="backdrop-blur-sm shadow-lg" style={themeStyles.header}>
         <div className="px-4 py-4">
-          <h1 className="text-xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
             Поиск пользователей
           </h1>
-          <p className="text-sm text-gray-300 mt-2">
+          <p className="text-sm mt-2" style={themeStyles.textSecondary}>
             Привет, {user.first_name || user.username || 'Пользователь'}! 👋
           </p>
         </div>
@@ -187,7 +191,11 @@ const MiniAppUserSearch: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Введите имя пользователя или @username"
-              className="w-full px-4 py-4 pr-20 bg-gray-800/50 backdrop-blur-sm border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-300 hover:bg-gray-800/70"
+              className="w-full px-4 py-4 pr-20 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-300 adaptive-input"
+              style={{
+                ...themeStyles.input,
+                '--placeholder-color': themeStyles.inputPlaceholder.color
+              } as React.CSSProperties}
               disabled={isSearching}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-4">
@@ -227,12 +235,12 @@ const MiniAppUserSearch: React.FC = () => {
           </div>
 
           {searchError && (
-            <div className="bg-red-900/30 backdrop-blur-sm border border-red-700/50 rounded-xl p-4">
+            <div className="rounded-xl p-4" style={themeStyles.error}>
               <div className="flex items-center space-x-2">
-                <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
-                <p className="text-red-300 text-sm">{searchError}</p>
+                <p className="text-sm">{searchError}</p>
               </div>
             </div>
           )}
@@ -240,7 +248,8 @@ const MiniAppUserSearch: React.FC = () => {
           <button
             type="submit"
             disabled={isSearching || !searchQuery.trim()}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 text-white font-semibold py-4 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none disabled:shadow-none"
+            className="w-full font-semibold py-4 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none disabled:shadow-none"
+            style={themeStyles.buttonPrimary}
           >
             <div className="flex items-center justify-center space-x-3">
               {isSearching ? (
@@ -265,29 +274,30 @@ const MiniAppUserSearch: React.FC = () => {
           <div className="mt-8">
             <div className="flex items-center space-x-3 mb-8">
               <div className="h-8 w-1 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full flex-shrink-0"></div>
-              <h2 className="text-lg font-bold text-white">
-                Найдено пользователей: <span className="text-blue-400">{searchResults.length}</span>
+              <h2 className="text-lg font-bold" style={themeStyles.textPrimary}>
+                Найдено пользователей: <span style={themeStyles.textAccent}>{searchResults.length}</span>
               </h2>
             </div>
             <div className="space-y-3">
               {searchResults.map((result) => (
                 <div
                   key={result.id}
-                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-800/70"
+                  className="rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300"
+                  style={themeStyles.card}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white text-lg truncate">
+                      <h3 className="font-semibold text-lg truncate" style={themeStyles.textPrimary}>
                         {getUserDisplayName(result)}
                       </h3>
                       {result.telegram_id && (
-                        <p className="text-sm text-gray-400 mt-2">
-                          ID: <span className="text-blue-400">{result.telegram_id}</span>
+                        <p className="text-sm mt-2" style={themeStyles.textSecondary}>
+                          ID: <span style={themeStyles.textAccent}>{result.telegram_id}</span>
                         </p>
                       )}
                       {result.language_code && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Язык: <span className="text-purple-400">{result.language_code.toUpperCase()}</span>
+                        <p className="text-xs mt-1" style={themeStyles.textHint}>
+                          Язык: <span style={themeStyles.textAccent}>{result.language_code.toUpperCase()}</span>
                         </p>
                       )}
                     </div>
@@ -312,13 +322,13 @@ const MiniAppUserSearch: React.FC = () => {
 
         {searchData && searchResults.length === 0 && !isSearching && (
           <div className="mt-8 text-center py-16">
-            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-2xl p-8 max-w-md mx-auto">
-              <div className="text-gray-400 text-6xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold text-white mb-3">Пользователи не найдены</h3>
-              <p className="text-gray-400 leading-relaxed">
+            <div className="rounded-2xl p-8 max-w-md mx-auto" style={themeStyles.card}>
+              <div className="text-6xl mb-4" style={themeStyles.textHint}>🔍</div>
+              <h3 className="text-xl font-semibold mb-3" style={themeStyles.textPrimary}>Пользователи не найдены</h3>
+              <p className="leading-relaxed" style={themeStyles.textSecondary}>
                 Попробуйте изменить запрос или проверить правильность написания
               </p>
-              <div className="mt-4 text-sm text-gray-500">
+              <div className="mt-4 text-sm" style={themeStyles.textHint}>
                 💡 Совет: используйте @username для точного поиска
               </div>
             </div>

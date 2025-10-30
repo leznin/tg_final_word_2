@@ -136,9 +136,42 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Mount frontend files for mini app
+from fastapi.responses import FileResponse
+import os
+
+# Mount frontend assets
+frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+if os.path.exists(frontend_dist):
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="frontend-assets")
+
 # Include routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(admin_router, prefix="/admin")
+
+
+@app.get("/mini-app")
+async def mini_app():
+    """Serve mini app HTML file"""
+    frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+    mini_app_path = os.path.join(frontend_dist, "mini-app.html")
+
+    if os.path.exists(mini_app_path):
+        return FileResponse(mini_app_path, media_type="text/html")
+    else:
+        return {"error": "Mini app not found"}
+
+
+@app.get("/mini-app/user-search")
+async def mini_app_user_search():
+    """Serve mini app HTML file for user search route"""
+    frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+    mini_app_path = os.path.join(frontend_dist, "mini-app.html")
+
+    if os.path.exists(mini_app_path):
+        return FileResponse(mini_app_path, media_type="text/html")
+    else:
+        return {"error": "Mini app not found"}
 
 
 @app.get("/")

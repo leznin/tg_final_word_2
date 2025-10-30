@@ -12,6 +12,7 @@ import { OpenRouter } from './pages/OpenRouter';
 import { AIModerationPayments } from './pages/AIModerationPayments';
 import { Broadcast } from './pages/Broadcast';
 import { Login } from './pages/Login';
+import MiniAppUserSearch from './pages/MiniAppUserSearch';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/mini-app/user-search" element={<MiniAppUserSearch />} />
           <Route
             path="/*"
             element={

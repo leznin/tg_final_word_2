@@ -2,7 +2,7 @@
 Chats API router
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
@@ -12,6 +12,7 @@ from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelReq
 from app.services.chats import ChatService
 from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.models.chats import Chat
+from app.dependencies.admin_auth import require_admin_auth
 
 router = APIRouter()
 
@@ -21,7 +22,8 @@ async def get_chats(
     skip: int = 0,
     limit: int = 100,
     include_inactive: bool = True,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(require_admin_auth)
 ):
     """Get all chats (groups and supergroups) with linked channel information"""
     chat_service = ChatService(db)

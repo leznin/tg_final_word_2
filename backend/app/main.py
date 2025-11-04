@@ -15,6 +15,7 @@ from app.admin.routes import admin_router
 from app.telegram.bot import TelegramBot
 from app.services.messages import MessageService
 from app.services.chat_subscriptions import ChatSubscriptionsService
+from app.middleware.security import SecurityMiddleware
 from fastapi import Request
 
 
@@ -121,7 +122,11 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description=settings.DESCRIPTION,
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Disable docs in production for security
+    docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
+    redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
+    openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else None
 )
 
 # CORS middleware
@@ -132,6 +137,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Security middleware
+app.add_middleware(SecurityMiddleware)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

@@ -2,13 +2,14 @@
 Users API router
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from app.core.database import get_db
 from app.schemas.users import UserCreate, UserResponse, UserWithChatsResponse
 from app.services.users import UserService
+from app.dependencies.admin_auth import require_admin_auth
 
 router = APIRouter()
 
@@ -27,7 +28,8 @@ async def create_user(
 async def get_users_with_chats(
     skip: int = 0,
     limit: int = 100,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(require_admin_auth)
 ):
     """Get all users with their chats information including linked channels and moderators"""
     user_service = UserService(db)

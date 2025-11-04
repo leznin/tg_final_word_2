@@ -9,6 +9,7 @@ from typing import List
 
 from app.core.database import get_db
 from app.services.users import UserService
+from app.core.config import settings
 
 admin_router = APIRouter()
 
@@ -16,7 +17,8 @@ admin_router = APIRouter()
 @admin_router.get("/", response_class=HTMLResponse)
 async def admin_dashboard():
     from fastapi.responses import Response
-    html_content = """
+    admin_key = settings.ADMIN_SECRET_KEY
+    html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -25,11 +27,11 @@ async def admin_dashboard():
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .stats { display: flex; gap: 20px; margin: 20px 0; }
-            .stat-card { border: 1px solid #ddd; padding: 20px; border-radius: 5px; }
-            nav { margin-bottom: 20px; }
-            nav a { margin-right: 15px; text-decoration: none; padding: 10px; background: #f0f0f0; border-radius: 3px; }
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .stats {{ display: flex; gap: 20px; margin: 20px 0; }}
+            .stat-card {{ border: 1px solid #ddd; padding: 20px; border-radius: 5px; }}
+            nav {{ margin-bottom: 20px; }}
+            nav a {{ margin-right: 15px; text-decoration: none; padding: 10px; background: #f0f0f0; border-radius: 3px; }}
         </style>
     </head>
     <body>
@@ -55,21 +57,21 @@ async def admin_dashboard():
 
         <script>
             // Load statistics
-            fetch('/api/v1/users', { headers: { 'X-Admin-Key': 'admin-secret-key' } })
+            fetch('/api/v1/users', {{ headers: {{ 'X-Admin-Key': '{admin_key}' }} }})
                 .then(r => r.json())
                 .then(data => document.getElementById('user-count').textContent = data.length)
-                .catch(error => {
+                .catch(error => {{
                     console.error('Error loading users:', error);
                     document.getElementById('user-count').textContent = 'Error loading';
-                });
+                }});
 
-            fetch('/api/v1/messages/count', { headers: { 'X-Admin-Key': 'admin-secret-key' } })
+            fetch('/api/v1/messages/count', {{ headers: {{ 'X-Admin-Key': '{admin_key}' }} }})
                 .then(r => r.json())
                 .then(data => document.getElementById('message-count').textContent = data.total_messages)
-                .catch(error => {
+                .catch(error => {{
                     console.error('Error loading messages:', error);
                     document.getElementById('message-count').textContent = 'Error loading';
-                });
+                }});
         </script>
     </body>
     </html>
@@ -205,6 +207,7 @@ async def admin_settings():
 @admin_router.get("/broadcast", response_class=HTMLResponse)
 async def admin_broadcast():
     """Admin broadcast page"""
+    admin_key = settings.ADMIN_SECRET_KEY
     return f"""
     <!DOCTYPE html>
     <html>
@@ -324,7 +327,7 @@ async def admin_broadcast():
                     <input type="text" placeholder="Button text" class="button-text">
                     <input type="url" placeholder="Button URL (optional)" class="button-url">
                     <input type="text" placeholder="Callback data (optional)" class="button-callback">
-                    <button type="button" class="remove-button" onclick="removeRow(\${rowCounter})">Remove</button>
+                    <button type="button" class="remove-button" onclick="removeRow(${{rowCounter}})">Remove</button>
                 `;
                 keyboardRows.appendChild(rowDiv);
             }}
@@ -407,7 +410,7 @@ async def admin_broadcast():
                         method: 'POST',
                         headers: {{
                             'Content-Type': 'application/json',
-                            'X-Admin-Key': 'admin-secret-key'
+                            'X-Admin-Key': '{admin_key}'
                         }},
                         body: JSON.stringify(requestData)
                     }});
@@ -471,7 +474,7 @@ async def admin_broadcast():
                 statusCheckInterval = setInterval(async () => {{
                     try {{
                         const response = await fetch('/api/v1/broadcast/status', {{
-                            headers: {{ 'X-Admin-Key': 'admin-secret-key' }}
+                            headers: {{ 'X-Admin-Key': '{admin_key}' }}
                         }});
                         const status = await response.json();
 
@@ -487,7 +490,7 @@ async def admin_broadcast():
 
             // Load initial user count
             fetch('/api/v1/broadcast/users/count', {{
-                headers: {{ 'X-Admin-Key': 'admin-secret-key' }}
+                headers: {{ 'X-Admin-Key': '{admin_key}' }}
             }})
             .then(r => r.json())
             .then(data => {{

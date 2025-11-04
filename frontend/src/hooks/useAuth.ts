@@ -16,12 +16,13 @@ export const useAuth = () => {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async (password: string): Promise<AuthResponse> => {
+    mutationFn: async (credentials: { email: string; password: string }): Promise<AuthResponse> => {
       // Get fingerprint before login attempt
       const fingerprint = await getFingerprint();
 
       const formData = new FormData();
-      formData.append('password', password);
+      formData.append('email', credentials.email);
+      formData.append('password', credentials.password);
       formData.append('fingerprint', fingerprint);
 
       const response = await api.post('/auth/login', formData, {

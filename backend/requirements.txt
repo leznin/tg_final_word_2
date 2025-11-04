@@ -9,9 +9,12 @@ passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.6
 httpx>=0.25.2
 pytest-httpx>=0.22.0
-alembic>=1.12.1
+alembic>=1.13.0  # Updated for security
 pytest>=7.4.3
 pytest-asyncio>=0.21.1
 aiosqlite>=0.19.0
 aiogram>=3.7.0
 requests>=2.31.0
+# Security dependencies
+cryptography>=41.0.7  # Updated for security patches
+bcrypt>=4.1.2  # Updated for latest security fixes

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.config import settings
 from app.services.auth_attempts import AuthAttemptsService
+from app.services.admin_users import AdminUsersService
 
 router = APIRouter()
 
@@ -32,11 +33,13 @@ async def login(
     response: Response,
     request: Request,
     fingerprint: str = Form(...),
+    email: str = Form(...),
     password: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin login with password verification and fingerprint blocking"""
+    """Admin login with email/password verification and fingerprint blocking"""
     auth_service = AuthAttemptsService(db)
+    admin_service = AdminUsersService(db)
 
     # Get client info
     client_ip = request.client.host if request.client else None
@@ -60,8 +63,9 @@ async def login(
             detail=f"Access blocked: {block_reason}"
         )
 
-    # Check password
-    if password == settings.ADMIN_SECRET_KEY:
+    # Authenticate admin user
+    admin_user = await admin_service.authenticate_admin(email, password)
+    if admin_user:
         # Create simple session token
         import uuid
         session_token = str(uuid.uuid4())
@@ -89,7 +93,7 @@ async def login(
 
         return {"success": True, "message": "Login successful"}
 
-    # Invalid password - record failed attempt
+    # Invalid credentials - record failed attempt
     await auth_service.record_attempt(
         fingerprint=fingerprint,
         ip_address=client_ip,
@@ -98,10 +102,10 @@ async def login(
         blocked=False
     )
 
-    # Invalid password
+    # Invalid credentials
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid password"
+        detail="Invalid email or password"
     )
 
 

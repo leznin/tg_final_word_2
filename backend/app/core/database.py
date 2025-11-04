@@ -28,6 +28,7 @@ engine = create_async_engine(
 # Import all models to register them with Base.metadata
 # This import must happen after engine creation to avoid circular imports
 from app.models.users import User
+from app.models.admin_users import AdminUser
 from app.models.chats import Chat
 from app.models.chat_members import ChatMember
 from app.models.messages import Message

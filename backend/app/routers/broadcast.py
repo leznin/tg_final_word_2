@@ -3,7 +3,7 @@ Broadcast router for sending messages to Telegram users
 """
 
 import base64
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, Union
 
@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.services.broadcast import BroadcastService
 from app.schemas.broadcast import BroadcastMessageRequest, BroadcastResult, BroadcastStatus
+from app.dependencies.admin_auth import require_admin_auth
 
 router = APIRouter()
 
@@ -37,7 +38,8 @@ def get_broadcast_service(db: AsyncSession = Depends(get_db)):
 @router.post("/send", response_model=BroadcastResult)
 async def send_broadcast(
     request: BroadcastMessageRequest,
-    service: BroadcastService = Depends(get_broadcast_service)
+    service: BroadcastService = Depends(get_broadcast_service),
+    _: bool = Depends(require_admin_auth)
 ) -> BroadcastResult:
     """
     Send broadcast message to all eligible users
@@ -72,7 +74,8 @@ async def send_broadcast(
 
 @router.get("/status", response_model=BroadcastStatus)
 async def get_broadcast_status(
-    service: BroadcastService = Depends(get_broadcast_service)
+    service: BroadcastService = Depends(get_broadcast_service),
+    _: bool = Depends(require_admin_auth)
 ) -> BroadcastStatus:
     """
     Get current broadcast status
@@ -82,7 +85,8 @@ async def get_broadcast_status(
 
 @router.post("/upload-media")
 async def upload_media_file(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    _: bool = Depends(require_admin_auth)
 ) -> Dict[str, Union[str, int]]:
     """
     Upload media file and return URL for use in broadcasts

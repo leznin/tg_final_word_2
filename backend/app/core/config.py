@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     MESSAGE_RETENTION_HOURS: int = 168  # Keep messages for 7 days (168 hours)
     CLEANUP_INTERVAL_MINUTES: int = 60  # Run cleanup every hour
 
+    # Environment
+    ENVIRONMENT: str = "development"  # development, production, testing
+
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v):
         if isinstance(v, str) and not v.startswith("["):

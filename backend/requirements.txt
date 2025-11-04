@@ -17,4 +17,4 @@ aiogram>=3.7.0
 requests>=2.31.0
 # Security dependencies
 cryptography>=41.0.7  # Updated for security patches
-bcrypt>=4.1.2  # Updated for latest security fixes
+bcrypt==3.2.2  # Fixed version for compatibility with passlib

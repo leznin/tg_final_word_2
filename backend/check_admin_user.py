@@ -19,7 +19,7 @@ async def check_admin_user():
     async with engine.begin() as conn:
         result = await conn.execute(
             text("SELECT email, is_active FROM admin_users WHERE email = :email"),
-            {"email": "Maksimleznin30@gmail.com"}
+            {"email": "maksimleznin30@gmail.com"}
         )
         user = result.fetchone()
         
@@ -40,12 +40,12 @@ async def check_admin_user():
                     "VALUES (:email, :password_hash, :is_active)"
                 ),
                 {
-                    "email": "Maksimleznin30@gmail.com",
+                    "email": "maksimleznin30@gmail.com",
                     "password_hash": hashed_password,
                     "is_active": True
                 }
             )
-            print("✅ Created default admin user: Maksimleznin30@gmail.com")
+            print("✅ Created default admin user: maksimleznin30@gmail.com")
 
 
 async def main():

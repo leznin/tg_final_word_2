@@ -89,12 +89,21 @@ nano .env  # or use your preferred editor
    DATABASE_URL=mysql+aiomysql://username:password@localhost:3306/database_name
    ```
 
-6. **Initialize database (tables will be created automatically on first run):**
+6. **Initialize admin user:**
+```bash
+# Make sure virtual environment is activated
+source venv/bin/activate
+
+# Run the script to create default admin user (maksimleznin30@gmail.com / 696578As!@#$)
+python check_admin_user.py
+```
+
+7. **Initialize database (tables will be created automatically on first run):**
 ```bash
 # The application will create tables automatically when started
 ```
 
-7. **Start the backend server:**
+8. **Start the backend server:**
 ```bash
 # Make sure virtual environment is activated
 source venv/bin/activate

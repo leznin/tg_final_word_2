@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, MessageSquare, Users, User, Bot, Shield, Send } from 'lucide-react';
+import { Home, MessageSquare, Users, User, Bot, Shield, Send, X } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
@@ -12,32 +12,79 @@ const navigation = [
   { name: 'OpenRouter', href: '/openrouter', icon: Bot },
 ];
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  isMobile?: boolean;
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, isMobile = false, onClose }) => {
+  const handleNavClick = () => {
+    if (isMobile && onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="w-64 bg-gray-900 min-h-screen">
-      <nav className="mt-6">
-        <div className="px-4 space-y-2">
-          {navigation.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.name}
-                to={item.href}
-                className={({ isActive }) =>
-                  `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                  }`
-                }
-              >
-                <Icon className="mr-3 h-5 w-5" />
-                {item.name}
-              </NavLink>
-            );
-          })}
-        </div>
-      </nav>
-    </aside>
+    <>
+      {/* Mobile backdrop */}
+      {isMobile && isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      
+      {/* Sidebar */}
+      <aside className={`
+        ${isMobile 
+          ? `fixed top-0 left-0 z-50 h-full w-64 transform transition-transform duration-300 ease-in-out ${
+              isOpen ? 'translate-x-0' : '-translate-x-full'
+            } md:relative md:translate-x-0`
+          : 'w-64'
+        } 
+        bg-gray-900 min-h-screen
+      `}>
+        {/* Mobile header with close button */}
+        {isMobile && (
+          <div className="flex items-center justify-between p-4 border-b border-gray-800 md:hidden">
+            <h2 className="text-lg font-semibold text-white">Меню</h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Закрыть меню"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
+
+        <nav className={`${isMobile ? 'mt-2' : 'mt-6'}`}>
+          <div className="px-4 space-y-2">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  onClick={handleNavClick}
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                  <span className="truncate">{item.name}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        </nav>
+      </aside>
+    </>
   );
 };

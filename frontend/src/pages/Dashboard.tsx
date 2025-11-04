@@ -41,54 +41,54 @@ export const Dashboard: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
         <p className="mt-2 text-sm text-gray-600">
           Обзор статистики и быстрый доступ к основным функциям
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {statsConfig.map((stat, index) => (
           <StatsCard key={index} {...stat} />
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Быстрые действия</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Быстрые действия</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
             onClick={() => navigate('/chats')}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
+            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group touch-target"
           >
             <div className="flex items-center space-x-3">
-              <MessageSquare className="h-5 w-5 text-blue-500" />
-              <span className="font-medium">Управление чатами</span>
+              <MessageSquare className="h-5 w-5 text-blue-500 flex-shrink-0" />
+              <span className="font-medium text-left">Управление чатами</span>
             </div>
-            <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+            <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 flex-shrink-0" />
           </button>
 
           <button
             onClick={() => navigate('/moderators')}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
+            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group touch-target"
           >
             <div className="flex items-center space-x-3">
-              <Users className="h-5 w-5 text-purple-500" />
-              <span className="font-medium">Управление модераторами</span>
+              <Users className="h-5 w-5 text-purple-500 flex-shrink-0" />
+              <span className="font-medium text-left">Управление модераторами</span>
             </div>
-            <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+            <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 flex-shrink-0" />
           </button>
 
           <button
             onClick={() => navigate('/ai-moderation-payments')}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
+            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group touch-target sm:col-span-2 lg:col-span-1"
           >
             <div className="flex items-center space-x-3">
-              <Star className="h-5 w-5 text-yellow-500" />
-              <span className="font-medium">AI Модерация</span>
+              <Star className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+              <span className="font-medium text-left">AI Модерация</span>
             </div>
-            <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+            <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 flex-shrink-0" />
           </button>
 
         </div>

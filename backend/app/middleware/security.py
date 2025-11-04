@@ -51,7 +51,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
         except Exception as e:
             # Log the error in production
-            raise HTTPException(status_code=500, detail="Internal server error")
+            import traceback
+            print(f"Security middleware caught exception: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
     async def _validate_request_body(self, request: Request):
         """

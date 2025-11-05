@@ -2,7 +2,7 @@
 Chats API router
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
@@ -12,7 +12,9 @@ from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelReq
 from app.services.chats import ChatService
 from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.models.chats import Chat
-from app.dependencies.admin_auth import require_admin_auth
+from app.models.admin_users import UserRole
+from app.dependencies.admin_auth import get_current_admin_user
+from app.services.manager_chat_access import ManagerChatAccessService
 
 router = APIRouter()
 
@@ -23,11 +25,25 @@ async def get_chats(
     limit: int = 100,
     include_inactive: bool = True,
     db: AsyncSession = Depends(get_db),
-    _: bool = Depends(require_admin_auth)
+    user_info: dict = Depends(get_current_admin_user)
 ):
     """Get all chats (groups and supergroups) with linked channel information"""
     chat_service = ChatService(db)
-    chats = await chat_service.get_chats_with_linked_channels_info(skip, limit, include_inactive)
+    
+    # Admins see all chats
+    if user_info.get("role") == UserRole.ADMIN.value:
+        chats = await chat_service.get_chats_with_linked_channels_info(skip, limit, include_inactive)
+    # Managers see only assigned chats
+    elif user_info.get("role") == UserRole.MANAGER.value:
+        access_service = ManagerChatAccessService(db)
+        chat_ids = await access_service.get_manager_chat_ids(user_info["user_id"])
+        
+        # Get full chat info for manager's chats
+        all_chats = await chat_service.get_chats_with_linked_channels_info(0, 10000, include_inactive)
+        # ChatWithLinkedChannelResponse is a Pydantic model, use .id instead of .get("id")
+        chats = [chat for chat in all_chats if chat.id in chat_ids]
+    else:
+        chats = []
 
     return {"chats": chats}
 
@@ -74,7 +90,8 @@ async def get_chats_by_user(
 @router.get("/{chat_id}")
 async def get_chat(
     chat_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_info: dict = Depends(get_current_admin_user)
 ):
     """Get chat detail by ID (internal ID or Telegram chat ID)"""
     from app.services.chat_moderators import ChatModeratorService
@@ -108,6 +125,16 @@ async def get_chat(
 
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Проверка доступа для менеджеров
+    if user_info.get("role") == UserRole.MANAGER.value:
+        access_service = ManagerChatAccessService(db)
+        has_access = await access_service.has_chat_access(user_info["user_id"], actual_chat_id)
+        if not has_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have access to this chat"
+            )
 
     # Get moderators for this chat
     all_moderators = await ChatModeratorService(db).get_all_moderators_with_chat_info()

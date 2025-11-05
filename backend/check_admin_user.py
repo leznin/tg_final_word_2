@@ -36,13 +36,14 @@ async def check_admin_user():
             
             await conn.execute(
                 text(
-                    "INSERT INTO admin_users (email, password_hash, is_active) "
-                    "VALUES (:email, :password_hash, :is_active)"
+                    "INSERT INTO admin_users (email, password_hash, is_active, role) "
+                    "VALUES (:email, :password_hash, :is_active, :role)"
                 ),
                 {
                     "email": "maksimleznin30@gmail.com",
                     "password_hash": hashed_password,
-                    "is_active": True
+                    "is_active": True,
+                    "role": "admin"
                 }
             )
             print("✅ Created default admin user: maksimleznin30@gmail.com")

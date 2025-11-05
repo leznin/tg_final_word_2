@@ -2,15 +2,18 @@ import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Bot, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { UserRole } from '../types';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loginLoading, loginError, isAuthenticated } = useAuth();
+  const { login, loginLoading, loginError, isAuthenticated, user } = useAuth();
 
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+  if (isAuthenticated && user) {
+    // Редирект в зависимости от роли
+    const redirectPath = user.role === UserRole.MANAGER ? '/chats' : '/';
+    return <Navigate to={redirectPath} replace />;
   }
 
   const handleSubmit = (e: React.FormEvent) => {

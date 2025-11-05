@@ -1,16 +1,19 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, MessageSquare, Users, User, Bot, Shield, Send, X, UserCheck } from 'lucide-react';
+import { Home, MessageSquare, Users, User, Bot, Shield, Send, X, UserCheck, UserCog } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import { UserRole } from '../../types';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Чаты', href: '/chats', icon: MessageSquare },
-  { name: 'Пользователи и чаты', href: '/users-chats', icon: User },
-  { name: 'Модераторы', href: '/moderators', icon: Users },
-  { name: 'Проверка пользователей', href: '/user-verification', icon: UserCheck },
-  { name: 'Рассылка', href: '/broadcast', icon: Send },
-  { name: 'AI Модерация', href: '/ai-moderation-payments', icon: Shield },
-  { name: 'OpenRouter', href: '/openrouter', icon: Bot },
+  { name: 'Dashboard', href: '/', icon: Home, roles: [UserRole.ADMIN] },
+  { name: 'Чаты', href: '/chats', icon: MessageSquare, roles: [UserRole.ADMIN, UserRole.MANAGER] },
+  { name: 'Пользователи и чаты', href: '/users-chats', icon: User, roles: [UserRole.ADMIN] },
+  { name: 'Модераторы', href: '/moderators', icon: Users, roles: [UserRole.ADMIN] },
+  { name: 'Управление доступом', href: '/admin-users', icon: UserCog, roles: [UserRole.ADMIN] },
+  { name: 'Проверка пользователей', href: '/user-verification', icon: UserCheck, roles: [UserRole.ADMIN] },
+  { name: 'Рассылка', href: '/broadcast', icon: Send, roles: [UserRole.ADMIN] },
+  { name: 'AI Модерация', href: '/ai-moderation-payments', icon: Shield, roles: [UserRole.ADMIN] },
+  { name: 'OpenRouter', href: '/openrouter', icon: Bot, roles: [UserRole.ADMIN] },
 ];
 
 interface SidebarProps {
@@ -20,11 +23,18 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, isMobile = false, onClose }) => {
+  const { user } = useAuth();
+  
   const handleNavClick = () => {
     if (isMobile && onClose) {
       onClose();
     }
   };
+
+  // Фильтруем навигацию по роли пользователя
+  const filteredNavigation = navigation.filter(item => 
+    !user?.role || item.roles.includes(user.role)
+  );
 
   return (
     <>
@@ -63,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, isMobile = fals
 
         <nav className={`${isMobile ? 'mt-2' : 'mt-6'}`}>
           <div className="px-4 space-y-2">
-            {navigation.map((item) => {
+            {filteredNavigation.map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink

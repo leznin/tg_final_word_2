@@ -130,6 +130,64 @@ export interface AuthResponse {
 
 export interface AuthCheckResponse {
   authenticated: boolean;
+  user?: AdminUserInfo;
+}
+
+export enum UserRole {
+  ADMIN = 'admin',
+  MANAGER = 'manager'
+}
+
+export interface AdminUserInfo {
+  user_id: number;
+  email: string;
+  role: UserRole;
+}
+
+export interface AdminUser {
+  id: number;
+  username?: string;
+  email: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminUserCreate {
+  username?: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  is_active?: boolean;
+}
+
+export interface AdminUserUpdate {
+  username?: string;
+  email?: string;
+  password?: string;
+  role?: UserRole;
+  is_active?: boolean;
+}
+
+export interface ManagerChatAccess {
+  id: number;
+  admin_user_id: number;
+  chat_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ManagerChatInfo {
+  chat_id: number;
+  telegram_chat_id: number;
+  chat_title?: string;
+  chat_type: string;
+}
+
+export interface ManagerChatAccessBulk {
+  admin_user_id: number;
+  chat_ids: number[];
 }
 
 export interface LinkChannelRequest {

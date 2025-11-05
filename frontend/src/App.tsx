@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RoleProtectedRoute } from './components/RoleProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { Chats } from './pages/Chats';
 import { UsersChats } from './pages/UsersChats';
@@ -13,7 +14,9 @@ import { AIModerationPayments } from './pages/AIModerationPayments';
 import { Broadcast } from './pages/Broadcast';
 import { UserVerification } from './pages/UserVerification';
 import { Login } from './pages/Login';
+import { AdminUsers } from './pages/AdminUsers';
 import MiniAppUserSearch from './pages/MiniAppUserSearch';
+import { UserRole } from './types';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,16 +47,53 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard />} />
+            <Route index element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <Dashboard />
+              </RoleProtectedRoute>
+            } />
             <Route path="chats" element={<Chats />} />
-            <Route path="chats/:chatId" element={<ChatDetail />} />
-            <Route path="users-chats" element={<UsersChats />} />
-            <Route path="moderators" element={<Moderators />} />
-            <Route path="ai-moderation-payments" element={<AIModerationPayments />} />
-            <Route path="openrouter" element={<OpenRouter />} />
-            <Route path="broadcast" element={<Broadcast />} />
-            <Route path="user-verification" element={<UserVerification />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="chats/:chatId" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+                <ChatDetail />
+              </RoleProtectedRoute>
+            } />
+            <Route path="users-chats" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <UsersChats />
+              </RoleProtectedRoute>
+            } />
+            <Route path="moderators" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <Moderators />
+              </RoleProtectedRoute>
+            } />
+            <Route path="admin-users" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <AdminUsers />
+              </RoleProtectedRoute>
+            } />
+            <Route path="ai-moderation-payments" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <AIModerationPayments />
+              </RoleProtectedRoute>
+            } />
+            <Route path="openrouter" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <OpenRouter />
+              </RoleProtectedRoute>
+            } />
+            <Route path="broadcast" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <Broadcast />
+              </RoleProtectedRoute>
+            } />
+            <Route path="user-verification" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <UserVerification />
+              </RoleProtectedRoute>
+            } />
+            <Route path="*" element={<Navigate to="/chats" replace />} />
           </Route>
         </Routes>
       </Router>

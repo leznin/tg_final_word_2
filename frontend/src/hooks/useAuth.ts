@@ -50,6 +50,7 @@ export const useAuth = () => {
 
   return {
     isAuthenticated: authStatus?.authenticated ?? false,
+    user: authStatus?.user,
     isLoading,
     login: loginMutation.mutate,
     logout: logoutMutation.mutate,

@@ -40,6 +40,7 @@ from app.models.subscription_prices import SubscriptionPrice
 from app.models.chat_subscriptions import ChatSubscription
 from app.models.telegram_user_history import TelegramUserHistory
 from app.models.user_verification_schedule import UserVerificationSchedule
+from app.models.manager_chat_access import ManagerChatAccess
 
 # Create async session factory
 async_session = async_sessionmaker(

@@ -14,7 +14,8 @@ from app.services.admin_users import AdminUsersService
 router = APIRouter()
 
 # Simple in-memory session store (in production, use Redis or database)
-_sessions = set()
+# Format: {session_token: {"user_id": int, "role": str, "email": str}}
+_sessions = {}
 
 security = HTTPBearer(auto_error=False)
 
@@ -24,8 +25,8 @@ async def get_current_admin(request: Request):
     # Check if admin session exists
     admin_token = request.cookies.get("admin_session")
     if admin_token and admin_token in _sessions:
-        return True
-    return False
+        return _sessions[admin_token]
+    return None
 
 
 @router.post("/login")
@@ -70,8 +71,12 @@ async def login(
         import uuid
         session_token = str(uuid.uuid4())
 
-        # Store session (in production, use Redis/database)
-        _sessions.add(session_token)
+        # Store session with user info (in production, use Redis/database)
+        _sessions[session_token] = {
+            "user_id": admin_user.id,
+            "role": admin_user.role,
+            "email": admin_user.email
+        }
 
         # Record successful attempt
         await auth_service.record_attempt(
@@ -91,7 +96,15 @@ async def login(
             samesite="lax"
         )
 
-        return {"success": True, "message": "Login successful"}
+        return {
+            "success": True, 
+            "message": "Login successful",
+            "user": {
+                "id": admin_user.id,
+                "email": admin_user.email,
+                "role": admin_user.role
+            }
+        }
 
     # Invalid credentials - record failed attempt
     await auth_service.record_attempt(
@@ -112,8 +125,13 @@ async def login(
 @router.get("/check")
 async def check_auth(request: Request):
     """Check if admin is authenticated"""
-    is_admin = await get_current_admin(request)
-    return {"authenticated": is_admin}
+    user_info = await get_current_admin(request)
+    if user_info:
+        return {
+            "authenticated": True,
+            "user": user_info
+        }
+    return {"authenticated": False}
 
 
 @router.post("/logout")
@@ -121,7 +139,7 @@ async def logout(request: Request, response: Response):
     """Admin logout"""
     admin_token = request.cookies.get("admin_session")
     if admin_token and admin_token in _sessions:
-        _sessions.remove(admin_token)
+        del _sessions[admin_token]
 
     # Clear session cookie
     response.delete_cookie("admin_session")

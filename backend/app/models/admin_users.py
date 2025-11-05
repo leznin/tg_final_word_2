@@ -2,8 +2,15 @@
 Admin users database model for web authentication
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, Enum
 from app.core.database import Base
+import enum
+
+
+class UserRole(str, enum.Enum):
+    """User roles enum"""
+    ADMIN = "admin"
+    MANAGER = "manager"
 
 
 class AdminUser(Base):
@@ -14,6 +21,7 @@ class AdminUser(Base):
     username = Column(String(50), unique=True, index=True, nullable=True)
     email = Column(String(100), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), default=UserRole.ADMIN.value, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

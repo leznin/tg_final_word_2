@@ -11,7 +11,6 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import init_db, get_db, async_session
 from app.routers import api_router
-from app.admin.routes import admin_router
 from app.telegram.bot import TelegramBot
 from app.services.messages import MessageService
 from app.services.chat_subscriptions import ChatSubscriptionsService
@@ -155,7 +154,6 @@ if os.path.exists(frontend_dist):
 
 # Include routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
-app.include_router(admin_router, prefix="/admin")
 
 
 @app.get("/mini-app")
@@ -188,8 +186,7 @@ async def root():
     return {
         "message": "Welcome to FastAPI Telegram Admin API",
         "version": settings.VERSION,
-        "docs": "/docs",
-        "admin": "/admin"
+        "docs": "/docs"
     }
 
 

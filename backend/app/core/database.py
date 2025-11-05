@@ -30,6 +30,7 @@ engine = create_async_engine(
 from app.models.users import User
 from app.models.admin_users import AdminUser
 from app.models.chats import Chat
+from app.models.telegram_users import TelegramUser
 from app.models.chat_members import ChatMember
 from app.models.messages import Message
 from app.models.auth_attempts import AuthAttempt
@@ -37,9 +38,6 @@ from app.models.chat_moderators import ChatModerator
 from app.models.openrouter import OpenRouterSettings
 from app.models.subscription_prices import SubscriptionPrice
 from app.models.chat_subscriptions import ChatSubscription
-
-# Import TelegramUser after Base is created to avoid circular import
-from app.models.telegram_users import TelegramUser
 from app.models.telegram_user_history import TelegramUserHistory
 
 # Create async session factory

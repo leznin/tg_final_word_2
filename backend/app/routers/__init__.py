@@ -16,6 +16,7 @@ from app.routers.subscription_prices import router as subscription_prices_router
 from app.routers.chat_subscriptions import router as chat_subscriptions_router
 from app.routers.broadcast import router as broadcast_router
 from app.routers.mini_app import router as mini_app_router
+from app.routers.user_verification import router as user_verification_router
 
 api_router = APIRouter()
 
@@ -33,3 +34,4 @@ api_router.include_router(subscription_prices_router, prefix="/subscription-pric
 api_router.include_router(chat_subscriptions_router, prefix="/chat-subscriptions", tags=["chat-subscriptions"])
 api_router.include_router(broadcast_router, prefix="/broadcast", tags=["broadcast"])
 api_router.include_router(mini_app_router, prefix="/mini-app", tags=["mini-app"])
+api_router.include_router(user_verification_router, prefix="/admin/user-verification", tags=["admin-user-verification"])

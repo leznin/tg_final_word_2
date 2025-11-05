@@ -11,6 +11,7 @@ import { ChatDetail } from './pages/ChatDetail';
 import { OpenRouter } from './pages/OpenRouter';
 import { AIModerationPayments } from './pages/AIModerationPayments';
 import { Broadcast } from './pages/Broadcast';
+import { UserVerification } from './pages/UserVerification';
 import { Login } from './pages/Login';
 import MiniAppUserSearch from './pages/MiniAppUserSearch';
 
@@ -51,6 +52,7 @@ function App() {
             <Route path="ai-moderation-payments" element={<AIModerationPayments />} />
             <Route path="openrouter" element={<OpenRouter />} />
             <Route path="broadcast" element={<Broadcast />} />
+            <Route path="user-verification" element={<UserVerification />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

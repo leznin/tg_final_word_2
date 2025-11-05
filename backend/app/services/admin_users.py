@@ -6,6 +6,8 @@ from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from passlib.context import CryptContext
+import secrets
+import string
 
 from app.models.admin_users import AdminUser, UserRole
 from app.schemas.admin_users import AdminUserCreate, AdminUserUpdate
@@ -26,6 +28,31 @@ class AdminUsersService:
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash"""
         return self.pwd_context.verify(plain_password, hashed_password)
+
+    def generate_password(self, length: int = 16) -> str:
+        """Generate a secure random password"""
+        # Define character sets
+        uppercase = string.ascii_uppercase
+        lowercase = string.ascii_lowercase
+        digits = string.digits
+        symbols = '!@#$%^&*'
+        all_chars = uppercase + lowercase + digits + symbols
+        
+        # Ensure at least one character from each set
+        password = [
+            secrets.choice(uppercase),
+            secrets.choice(lowercase),
+            secrets.choice(digits),
+            secrets.choice(symbols)
+        ]
+        
+        # Fill the rest with random characters
+        password += [secrets.choice(all_chars) for _ in range(length - 4)]
+        
+        # Shuffle the password
+        secrets.SystemRandom().shuffle(password)
+        
+        return ''.join(password)
 
     async def get_admin_by_email(self, email: str) -> Optional[AdminUser]:
         """Get admin user by email"""
@@ -127,3 +154,16 @@ class AdminUsersService:
         await self.db.commit()
         
         return True
+
+    async def update_admin_password(self, admin_id: int, new_password: str) -> Optional[AdminUser]:
+        """Update admin user password"""
+        admin = await self.get_admin_by_id(admin_id)
+        if not admin:
+            return None
+
+        admin.password_hash = self.hash_password(new_password)
+        
+        await self.db.commit()
+        await self.db.refresh(admin)
+        
+        return admin

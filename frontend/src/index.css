@@ -113,6 +113,11 @@ button, input, textarea, select {
     padding: 12px 16px;
   }
 
+  /* Custom select dropdown styling */
+  select {
+    background-image: none; /* Remove default arrow in some browsers */
+  }
+
   /* Prevent horizontal scroll */
   body {
     overflow-x: hidden;
@@ -126,6 +131,11 @@ textarea:focus,
 select:focus {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
+}
+
+/* Better select focus */
+select:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Better tap highlights */

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Users, CheckCircle, XCircle, AlertTriangle, RefreshCw, Clock, Calendar, Settings } from 'lucide-react';
+import { Search, Users, CheckCircle, XCircle, AlertTriangle, RefreshCw, Clock, Calendar, Settings, MessageSquare } from 'lucide-react';
 import { Loading } from '../components/ui/Loading';
+import { Select } from '../components/ui/Select';
 
 interface Chat {
   id: number;
@@ -53,6 +54,7 @@ interface VerificationSchedule {
 }
 
 export const UserVerification: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'single' | 'bulk' | 'schedule'>('single');
   const [chats, setChats] = useState<Chat[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
   
@@ -74,7 +76,6 @@ export const UserVerification: React.FC = () => {
   
   // Schedule state
   const [schedules, setSchedules] = useState<VerificationSchedule[]>([]);
-  const [loadingSchedules, setLoadingSchedules] = useState(false);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
     enabled: true,
@@ -177,7 +178,6 @@ export const UserVerification: React.FC = () => {
   };
   
   const loadSchedules = async () => {
-    setLoadingSchedules(true);
     try {
       const response = await fetch('/api/v1/admin/verification-schedule/schedules');
       if (!response.ok) throw new Error('Failed to load schedules');
@@ -185,8 +185,6 @@ export const UserVerification: React.FC = () => {
       setSchedules(data);
     } catch (error) {
       console.error('Error loading schedules:', error);
-    } finally {
-      setLoadingSchedules(false);
     }
   };
 
@@ -283,395 +281,430 @@ export const UserVerification: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Проверка пользователей</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Автоматическая проверка информации о пользователях через Telegram API
-        </p>
+    <div className="max-w-7xl mx-auto space-y-4">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Проверка пользователей</h1>
+            <p className="mt-1 text-blue-100 text-sm">
+              Автоматическая проверка и обновление данных через Telegram API
+            </p>
+          </div>
+          <Users className="w-12 h-12 opacity-80" />
+        </div>
       </div>
 
-      {/* Single User Verification */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Search className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Проверить одного пользователя</h2>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Выберите чат
-            </label>
-            <select
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-sm p-1 flex gap-1">
+        <button
+          onClick={() => setActiveTab('single')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+            activeTab === 'single'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <Search className="w-5 h-5" />
+          <span>Один пользователь</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('bulk')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+            activeTab === 'bulk'
+              ? 'bg-green-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <Users className="w-5 h-5" />
+          <span>Массовая проверка</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('schedule')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+            activeTab === 'schedule'
+              ? 'bg-purple-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <Clock className="w-5 h-5" />
+          <span>Расписание</span>
+        </button>
+      </div>
+
+      {/* Single User Tab */}
+      {activeTab === 'single' && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <Select
+              label="Чат"
               value={singleChatId}
               onChange={(e) => setSingleChatId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              icon={<MessageSquare className="w-5 h-5" />}
+              variant="primary"
             >
               <option value="">Выберите чат...</option>
               {chats.map(chat => (
                 <option key={chat.id} value={chat.id}>
-                  {chat.title} ({chat.chat_type})
+                  {chat.title}
                 </option>
               ))}
-            </select>
+            </Select>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Telegram User ID
+              </label>
+              <input
+                type="number"
+                value={telegramUserId}
+                onChange={(e) => setTelegramUserId(e.target.value)}
+                placeholder="Введите User ID"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Telegram User ID
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={singleAutoUpdate}
+                onChange={(e) => setSingleAutoUpdate(e.target.checked)}
+                className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">Автообновление при изменениях</span>
             </label>
-            <input
-              type="number"
-              value={telegramUserId}
-              onChange={(e) => setTelegramUserId(e.target.value)}
-              placeholder="Введите Telegram user ID"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            
+            <button
+              onClick={verifySingleUser}
+              disabled={verifySingleLoading || !singleChatId || !telegramUserId}
+              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+            >
+              {verifySingleLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Проверка...
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4" />
+                  Проверить
+                </>
+              )}
+            </button>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="single-auto-update"
-              checked={singleAutoUpdate}
-              onChange={(e) => setSingleAutoUpdate(e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="single-auto-update" className="text-sm text-gray-700">
-              Автоматически обновлять данные при обнаружении изменений
-            </label>
-          </div>
-          
-          <button
-            onClick={verifySingleUser}
-            disabled={verifySingleLoading || !singleChatId || !telegramUserId}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-          >
-            {verifySingleLoading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Проверка...
-              </>
-            ) : (
-              <>
-                <Search className="w-4 h-4" />
-                Проверить пользователя
-              </>
-            )}
-          </button>
         </div>
-      </div>
+      )}
 
-      {/* Bulk Verification */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Users className="w-5 h-5 text-green-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Проверить активных пользователей</h2>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Фильтр по чату (опционально)
-            </label>
-            <select
+      {/* Bulk Verification Tab */}
+      {activeTab === 'bulk' && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="mb-6">
+            <Select
+              label="Фильтр по чату (опционально)"
               value={bulkChatId}
               onChange={(e) => setBulkChatId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              icon={<Users className="w-5 h-5" />}
+              variant="success"
             >
               <option value="">Все активные пользователи</option>
               {chats.map(chat => (
                 <option key={chat.id} value={chat.id}>
-                  {chat.title} ({chat.chat_type})
+                  {chat.title}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="bulk-auto-update"
-              checked={bulkAutoUpdate}
-              onChange={(e) => setBulkAutoUpdate(e.target.checked)}
-              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-            />
-            <label htmlFor="bulk-auto-update" className="text-sm text-gray-700">
-              Автоматически обновлять данные при обнаружении изменений
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={bulkAutoUpdate}
+                onChange={(e) => setBulkAutoUpdate(e.target.checked)}
+                className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+              />
+              <span className="text-sm text-gray-700">Автообновление при изменениях</span>
             </label>
+            
+            <button
+              onClick={verifyActiveUsers}
+              disabled={verifyBulkLoading}
+              className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+            >
+              {verifyBulkLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Проверка...
+                </>
+              ) : (
+                <>
+                  <Users className="w-4 h-4" />
+                  Начать проверку
+                </>
+              )}
+            </button>
           </div>
-          
-          <button
-            onClick={verifyActiveUsers}
-            disabled={verifyBulkLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-          >
-            {verifyBulkLoading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Проверка...
-              </>
-            ) : (
-              <>
-                <Users className="w-4 h-4" />
-                Начать проверку
-              </>
-            )}
-          </button>
         </div>
-      </div>
+      )}
 
-      {/* Scheduled Verification */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Автоматическая проверка по расписанию</h2>
-          </div>
-          <button
-            onClick={() => {
-              setShowScheduleForm(true);
-              setEditingScheduleId(null);
-              setScheduleForm({
-                enabled: true,
-                schedule_time: '02:00',
-                interval_hours: 24,
-                auto_update: true,
-                chat_id: ''
-              });
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Settings className="w-4 h-4" />
-            Добавить расписание
-          </button>
-        </div>
-
-        {showScheduleForm && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h3 className="text-md font-semibold text-gray-900 mb-4">
-              {editingScheduleId ? 'Редактировать расписание' : 'Новое расписание'}
-            </h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Время запуска
-                  </label>
-                  <input
-                    type="time"
-                    value={scheduleForm.schedule_time}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, schedule_time: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Интервал (часов)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="168"
-                    value={scheduleForm.interval_hours}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, interval_hours: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Фильтр по чату (опционально)
-                </label>
-                <select
-                  value={scheduleForm.chat_id}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, chat_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">Все чаты</option>
-                  {chats.map(chat => (
-                    <option key={chat.id} value={chat.id}>
-                      {chat.title} ({chat.chat_type})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="schedule-enabled"
-                    checked={scheduleForm.enabled}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, enabled: e.target.checked })}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <label htmlFor="schedule-enabled" className="text-sm text-gray-700">
-                    Включено
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="schedule-auto-update"
-                    checked={scheduleForm.auto_update}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, auto_update: e.target.checked })}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <label htmlFor="schedule-auto-update" className="text-sm text-gray-700">
-                    Автообновление данных
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={saveSchedule}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Сохранить
-                </button>
-                <button
-                  onClick={() => {
-                    setShowScheduleForm(false);
+      {/* Schedule Tab */}
+      {activeTab === 'schedule' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Расписания проверок</h3>
+              <button
+                onClick={() => {
+                  setShowScheduleForm(!showScheduleForm);
+                  if (!showScheduleForm) {
                     setEditingScheduleId(null);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Отмена
-                </button>
+                    setScheduleForm({
+                      enabled: true,
+                      schedule_time: '02:00',
+                      interval_hours: 24,
+                      auto_update: true,
+                      chat_id: ''
+                    });
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all shadow-md hover:shadow-lg"
+              >
+                <Settings className="w-4 h-4" />
+                {showScheduleForm ? 'Отмена' : 'Добавить расписание'}
+              </button>
+            </div>
+
+            {showScheduleForm && (
+              <div className="mb-6 p-5 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200">
+                <h4 className="text-md font-semibold text-gray-900 mb-4">
+                  {editingScheduleId ? 'Редактировать расписание' : 'Новое расписание'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Время запуска
+                    </label>
+                    <input
+                      type="time"
+                      value={scheduleForm.schedule_time}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, schedule_time: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Интервал (часов)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="168"
+                      value={scheduleForm.interval_hours}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, interval_hours: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <Select
+                    label="Фильтр по чату"
+                    value={scheduleForm.chat_id}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, chat_id: e.target.value })}
+                    icon={<MessageSquare className="w-5 h-5" />}
+                    variant="default"
+                  >
+                    <option value="">Все чаты</option>
+                    {chats.map(chat => (
+                      <option key={chat.id} value={chat.id}>
+                        {chat.title}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-6 mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={scheduleForm.enabled}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, enabled: e.target.checked })}
+                      className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700 font-medium">Включено</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={scheduleForm.auto_update}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, auto_update: e.target.checked })}
+                      className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700 font-medium">Автообновление</span>
+                  </label>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={saveSchedule}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all shadow-md hover:shadow-lg"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Сохранить
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowScheduleForm(false);
+                      setEditingScheduleId(null);
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Отмена
+                  </button>
+                </div>
               </div>
+            )}
+
+            <div className="space-y-3">
+              {schedules.length === 0 ? (
+                <div className="text-center py-12">
+                  <Clock className="w-16 h-16 mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-500">Нет настроенных расписаний</p>
+                  <p className="text-sm text-gray-400 mt-1">Создайте первое расписание автоматической проверки</p>
+                </div>
+              ) : (
+                schedules.map(schedule => (
+                  <div key={schedule.id} className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${schedule.enabled ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
+                            {schedule.enabled ? '● Активно' : '○ Выключено'}
+                          </span>
+                          <span className="flex items-center gap-1 text-sm font-medium text-gray-700">
+                            <Clock className="w-4 h-4" />
+                            {schedule.schedule_time} / {schedule.interval_hours}ч
+                          </span>
+                          {schedule.chat_title && (
+                            <span className="text-sm text-gray-600 bg-white px-2 py-1 rounded">
+                              📱 {schedule.chat_title}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 space-y-1 ml-1">
+                          {schedule.last_run_at && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Последний: {new Date(schedule.last_run_at).toLocaleString('ru-RU')}
+                            </div>
+                          )}
+                          {schedule.next_run_at && (
+                            <div className="flex items-center gap-1 font-medium text-blue-600">
+                              <Calendar className="w-3 h-3" />
+                              Следующий: {new Date(schedule.next_run_at).toLocaleString('ru-RU')}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => toggleSchedule(schedule.id)}
+                          className={`p-2 rounded-lg text-sm font-medium transition-all ${
+                            schedule.enabled 
+                              ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' 
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                          title={schedule.enabled ? 'Выключить' : 'Включить'}
+                        >
+                          {schedule.enabled ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => editSchedule(schedule)}
+                          className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all"
+                          title="Изменить"
+                        >
+                          <Settings className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteSchedule(schedule.id)}
+                          className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all"
+                          title="Удалить"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-        )}
-
-        <div className="space-y-3">
-          {schedules.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">Нет настроенных расписаний</p>
-          ) : (
-            schedules.map(schedule => (
-              <div key={schedule.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${schedule.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {schedule.enabled ? 'Активно' : 'Выключено'}
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        <Calendar className="w-4 h-4 inline mr-1" />
-                        {schedule.schedule_time} каждые {schedule.interval_hours}ч
-                      </span>
-                      {schedule.chat_title && (
-                        <span className="text-sm text-gray-600">
-                          📱 {schedule.chat_title}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 space-y-1">
-                      {schedule.last_run_at && (
-                        <div>Последний запуск: {new Date(schedule.last_run_at).toLocaleString('ru-RU')}</div>
-                      )}
-                      {schedule.next_run_at && (
-                        <div>Следующий запуск: {new Date(schedule.next_run_at).toLocaleString('ru-RU')}</div>
-                      )}
-                      <div>Автообновление: {schedule.auto_update ? 'Да' : 'Нет'}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => toggleSchedule(schedule.id)}
-                      className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                        schedule.enabled 
-                          ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
-                          : 'bg-green-100 text-green-800 hover:bg-green-200'
-                      }`}
-                    >
-                      {schedule.enabled ? 'Выключить' : 'Включить'}
-                    </button>
-                    <button
-                      onClick={() => editSchedule(schedule)}
-                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium hover:bg-blue-200 transition-colors"
-                    >
-                      Изменить
-                    </button>
-                    <button
-                      onClick={() => deleteSchedule(schedule.id)}
-                      className="px-3 py-1 bg-red-100 text-red-800 rounded text-sm font-medium hover:bg-red-200 transition-colors"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
         </div>
-      </div>
+      )}
 
       {/* Statistics */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-sm text-gray-600 mb-1">Проверено</div>
-            <div className="text-2xl font-bold text-gray-900">{stats.total_checked}</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
+            <div className="text-xs text-gray-600 mb-1 font-medium">Проверено</div>
+            <div className="text-2xl font-bold text-blue-600">{stats.total_checked}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-sm text-gray-600 mb-1">С изменениями</div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-orange-500">
+            <div className="text-xs text-gray-600 mb-1 font-medium">С изменениями</div>
             <div className="text-2xl font-bold text-orange-600">{stats.total_with_changes}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-sm text-gray-600 mb-1">Обновлено</div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
+            <div className="text-xs text-gray-600 mb-1 font-medium">Обновлено</div>
             <div className="text-2xl font-bold text-green-600">{stats.total_updated}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-sm text-gray-600 mb-1">Ошибки</div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-500">
+            <div className="text-xs text-gray-600 mb-1 font-medium">Ошибки</div>
             <div className="text-2xl font-bold text-red-600">{stats.total_errors}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-sm text-gray-600 mb-1">Длительность</div>
-            <div className="text-2xl font-bold text-blue-600">{stats.duration_seconds.toFixed(1)}с</div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-purple-500">
+            <div className="text-xs text-gray-600 mb-1 font-medium">Время</div>
+            <div className="text-2xl font-bold text-purple-600">{stats.duration_seconds.toFixed(1)}с</div>
           </div>
         </div>
       )}
 
       {/* Filter Buttons */}
       {results.length > 0 && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 bg-white rounded-lg shadow-sm p-2">
           <button
             onClick={() => setFilterType('all')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
               filterType === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Все результаты
+            Все ({results.length})
           </button>
           <button
             onClick={() => setFilterType('changes')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
               filterType === 'changes'
-                ? 'bg-orange-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-orange-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            С изменениями
+            Изменения ({results.filter(r => r.has_changes).length})
           </button>
           <button
             onClick={() => setFilterType('errors')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
               filterType === 'errors'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Только ошибки
+            Ошибки ({results.filter(r => r.error).length})
           </button>
         </div>
       )}
@@ -681,83 +714,96 @@ export const UserVerification: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     User ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Чат
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Статус
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Изменения
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Статус в чате
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Время проверки
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Время
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {getFilteredResults().map((result, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {result.telegram_user_id}
+                  <tr key={index} className="hover:bg-blue-50 transition-colors">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="text-sm font-semibold text-gray-900">{result.telegram_user_id}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {result.chat_title || result.chat_id}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="text-sm text-gray-600">{result.chat_title || result.chat_id}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       {result.error ? (
-                        <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
-                          <XCircle className="w-4 h-4" />
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                          <XCircle className="w-3 h-3" />
                           Ошибка
                         </span>
                       ) : result.is_updated ? (
-                        <span className="inline-flex items-center gap-1 text-green-600 font-semibold">
-                          <CheckCircle className="w-4 h-4" />
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                          <CheckCircle className="w-3 h-3" />
                           Обновлено
                         </span>
                       ) : result.has_changes ? (
-                        <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">
-                          <AlertTriangle className="w-4 h-4" />
-                          Есть изменения
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
+                          <AlertTriangle className="w-3 h-3" />
+                          Изменения
                         </span>
                       ) : (
-                        <span className="text-gray-500">Без изменений</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          <CheckCircle className="w-3 h-3" />
+                          OK
+                        </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-4 py-3">
                       {result.error ? (
-                        <div className="text-red-600">{result.error}</div>
+                        <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">{result.error}</div>
                       ) : Object.keys(result.changes).length > 0 ? (
                         <div className="space-y-1">
                           {Object.entries(result.changes).map(([field, change]) => (
-                            <div key={field} className="bg-yellow-50 px-2 py-1 rounded text-xs">
-                              <strong>{field}:</strong> "{change.old_value || 'null'}" → "{change.new_value || 'null'}"
+                            <div key={field} className="bg-orange-50 px-2 py-1 rounded text-xs border-l-2 border-orange-400">
+                              <span className="font-semibold text-orange-800">{field}:</span>
+                              <div className="text-gray-600 mt-0.5">
+                                <span className="line-through text-red-600">{change.old_value || 'null'}</span>
+                                {' → '}
+                                <span className="text-green-600 font-medium">{change.new_value || 'null'}</span>
+                              </div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-xs text-gray-400">Нет изменений</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {result.current_status || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(result.checked_at).toLocaleString('ru-RU')}
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                      {new Date(result.checked_at).toLocaleString('ru-RU', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          
+          {getFilteredResults().length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Нет результатов для выбранного фильтра</p>
+            </div>
+          )}
         </div>
       )}
     </div>

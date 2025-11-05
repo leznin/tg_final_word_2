@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Plus, Trash2, Shield, UserCog, Settings } from 'lucide-react';
+import { Users, Plus, Trash2, Shield, UserCog, Settings, Edit } from 'lucide-react';
 import { useAdminUsers, useDeleteAdminUser } from '../hooks/useAdminUsers';
 import { useCurrentUser } from '../hooks/useAdminUsers';
 import { DataTable } from '../components/ui/DataTable';
@@ -7,6 +7,7 @@ import { Loading } from '../components/ui/Loading';
 import { AdminUser, UserRole } from '../types';
 import { CreateManagerModal } from '../components/modals/CreateManagerModal';
 import { ManageChatAccessModal } from '../components/modals/ManageChatAccessModal';
+import { EditManagerModal } from '../components/modals/EditManagerModal';
 
 export const AdminUsers: React.FC = () => {
   const { data: adminUsers, isLoading } = useAdminUsers();
@@ -15,6 +16,7 @@ export const AdminUsers: React.FC = () => {
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedManager, setSelectedManager] = useState<AdminUser | null>(null);
 
   if (isLoading) return <Loading />;
@@ -34,6 +36,11 @@ export const AdminUsers: React.FC = () => {
   const handleManageAccess = (user: AdminUser) => {
     setSelectedManager(user);
     setIsAccessModalOpen(true);
+  };
+
+  const handleEditManager = (user: AdminUser) => {
+    setSelectedManager(user);
+    setIsEditModalOpen(true);
   };
 
   const columns = [
@@ -70,14 +77,14 @@ export const AdminUsers: React.FC = () => {
           {value === UserRole.ADMIN ? (
             <>
               <Shield className="w-4 h-4 text-red-500" />
-              <span className="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full">
+              <span className="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full shadow-sm">
                 Администратор
               </span>
             </>
           ) : (
             <>
               <UserCog className="w-4 h-4 text-blue-500" />
-              <span className="px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full">
+              <span className="px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full shadow-sm">
                 Менеджер
               </span>
             </>
@@ -91,7 +98,7 @@ export const AdminUsers: React.FC = () => {
       sortable: true,
       render: (value: boolean) => (
         <span
-          className={`px-2 py-1 text-xs font-semibold rounded-full ${
+          className={`px-2 py-1 text-xs font-semibold rounded-full shadow-sm ${
             value
               ? 'text-green-700 bg-green-100'
               : 'text-red-700 bg-red-100'
@@ -117,18 +124,27 @@ export const AdminUsers: React.FC = () => {
       render: (_: any, user: AdminUser) => (
         <div className="flex space-x-2">
           {user.role === UserRole.MANAGER && (
-            <button
-              onClick={() => handleManageAccess(user)}
-              className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
-              title="Управление доступом к чатам"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            <>
+              <button
+                onClick={() => handleEditManager(user)}
+                className="p-1 text-purple-600 hover:text-purple-800 transition-all duration-200 hover:shadow-md transform hover:scale-110"
+                title="Редактировать менеджера"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleManageAccess(user)}
+                className="p-1 text-blue-600 hover:text-blue-800 transition-all duration-200 hover:shadow-md transform hover:scale-110"
+                title="Управление доступом к чатам"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </>
           )}
           {currentUser?.id !== user.id && (
             <button
               onClick={() => handleDelete(user)}
-              className="p-1 text-red-600 hover:text-red-800 transition-colors"
+              className="p-1 text-red-600 hover:text-red-800 transition-all duration-200 hover:shadow-md transform hover:scale-110"
               title="Удалить"
               disabled={deleteAdmin.isPending}
             >
@@ -144,7 +160,7 @@ export const AdminUsers: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 drop-shadow-md">
             Управление пользователями
           </h1>
           <p className="mt-2 text-sm text-gray-600">
@@ -153,18 +169,18 @@ export const AdminUsers: React.FC = () => {
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
         >
           <Plus className="w-5 h-5" />
           <span>Создать пользователя</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-lg shadow-xl">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center space-x-2 text-gray-700">
             <Users className="w-5 h-5" />
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-lg font-semibold drop-shadow-sm">
               Пользователи ({users.length})
             </h2>
           </div>
@@ -187,6 +203,16 @@ export const AdminUsers: React.FC = () => {
           manager={selectedManager}
           onClose={() => {
             setIsAccessModalOpen(false);
+            setSelectedManager(null);
+          }}
+        />
+      )}
+
+      {isEditModalOpen && selectedManager && (
+        <EditManagerModal
+          manager={selectedManager}
+          onClose={() => {
+            setIsEditModalOpen(false);
             setSelectedManager(null);
           }}
         />

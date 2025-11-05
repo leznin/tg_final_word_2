@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Users, MessageSquare, Hash, Radio, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Users, MessageSquare, Hash, Radio, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { useUsersWithChats } from '../hooks/useUsersWithChats';
 import { UserChatsGroup } from '../components/ui/UserChatsGroup';
 import { Loading } from '../components/ui/Loading';
 import { UserWithChats } from '../types';
+import { Select } from '../components/ui/Select';
 
 interface Filters {
   searchTerm: string;
@@ -179,26 +180,28 @@ export const UsersChats: React.FC = () => {
 
           {/* Сортировка */}
           <div className="flex items-center space-x-3">
-            <span className="text-sm text-gray-700">Сортировка:</span>
-            <select
-              value={filters.sortBy}
-              onChange={(e) => updateFilter('sortBy', e.target.value as Filters['sortBy'])}
-              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="name">По имени</option>
-              <option value="chats">По чатам</option>
-              <option value="channels">По каналам</option>
-              <option value="created">По дате</option>
-            </select>
+            <span className="text-sm text-gray-700 font-medium">Сортировка:</span>
+            <div className="w-48">
+              <Select
+                value={filters.sortBy}
+                onChange={(e) => updateFilter('sortBy', e.target.value as Filters['sortBy'])}
+                icon={<ArrowUpDown className="w-4 h-4" />}
+              >
+                <option value="name">По имени</option>
+                <option value="chats">По чатам</option>
+                <option value="channels">По каналам</option>
+                <option value="created">По дате</option>
+              </Select>
+            </div>
             <button
               onClick={() => updateFilter('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               title={filters.sortOrder === 'asc' ? 'По возрастанию' : 'По убыванию'}
             >
               {filters.sortOrder === 'asc' ? (
-                <ArrowUp className="h-4 w-4 text-gray-600" />
+                <ArrowUp className="h-5 w-5 text-gray-600" />
               ) : (
-                <ArrowDown className="h-4 w-4 text-gray-600" />
+                <ArrowDown className="h-5 w-5 text-gray-600" />
               )}
             </button>
           </div>

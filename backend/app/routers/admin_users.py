@@ -120,3 +120,29 @@ async def delete_admin_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     return {"message": "User deleted successfully"}
+
+
+@router.post("/{admin_id}/reset-password")
+async def reset_admin_password(
+    admin_id: int,
+    _: dict = Depends(require_admin_role),
+    db: AsyncSession = Depends(get_db)
+):
+    """Reset admin user password and return new password (admin only)"""
+    admin_service = AdminUsersService(db)
+    
+    admin = await admin_service.get_admin_by_id(admin_id)
+    if not admin:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Generate new password
+    new_password = admin_service.generate_password()
+    
+    # Update password
+    await admin_service.update_admin_password(admin_id, new_password)
+    
+    return {
+        "message": "Password reset successfully",
+        "new_password": new_password,
+        "email": admin.email
+    }

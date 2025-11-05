@@ -55,12 +55,12 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 md:p-6">
         <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Быстрые действия</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
             onClick={() => navigate('/chats')}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group touch-target"
+            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg shadow-md hover:bg-gray-50 transition-colors group touch-target"
           >
             <div className="flex items-center space-x-3">
               <MessageSquare className="h-5 w-5 text-blue-500 flex-shrink-0" />
@@ -71,7 +71,7 @@ export const Dashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/moderators')}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group touch-target"
+            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg shadow-md hover:bg-gray-50 transition-colors group touch-target"
           >
             <div className="flex items-center space-x-3">
               <Users className="h-5 w-5 text-purple-500 flex-shrink-0" />
@@ -82,7 +82,7 @@ export const Dashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/ai-moderation-payments')}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group touch-target sm:col-span-2 lg:col-span-1"
+            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg shadow-md hover:bg-gray-50 transition-colors group touch-target sm:col-span-2 lg:col-span-1"
           >
             <div className="flex items-center space-x-3">
               <Star className="h-5 w-5 text-yellow-500 flex-shrink-0" />

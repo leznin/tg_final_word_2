@@ -142,7 +142,7 @@ export const Chats: React.FC = () => {
           <button
             onClick={handleGetChatInfo}
             disabled={getAllChatsInfo.isPending}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {getAllChatsInfo.isPending ? (
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -163,7 +163,7 @@ export const Chats: React.FC = () => {
       />
 
       {/* Поиск */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white rounded-lg shadow-md border border-gray-200">
         <div className="p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -194,7 +194,7 @@ export const Chats: React.FC = () => {
 
       {/* Пагинация */}
       {totalPages > 1 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4">
+        <div className="bg-white rounded-lg shadow-md border border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-700">
               Показано {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredChats.length)} из {filteredChats.length}
@@ -203,7 +203,7 @@ export const Chats: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="p-2 rounded-lg border border-gray-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -213,7 +213,7 @@ export const Chats: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="p-2 rounded-lg border border-gray-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -224,7 +224,7 @@ export const Chats: React.FC = () => {
 
       {/* Пустое состояние */}
       {filteredChats.length === 0 && (
-        <div className="bg-white rounded-lg shadow-sm p-12">
+        <div className="bg-white rounded-lg shadow-md p-12">
           <div className="text-center">
             <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">
@@ -249,28 +249,28 @@ export const Chats: React.FC = () => {
       )}
 
       {/* Статистика */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-md p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Статистика по чатам</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
+          <div className="text-center p-4 bg-blue-50 rounded-lg shadow-sm">
             <div className="text-2xl font-bold text-blue-600">
               {filteredChats.length}
             </div>
             <div className="text-sm text-blue-800">Показанных чатов</div>
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
+          <div className="text-center p-4 bg-green-50 rounded-lg shadow-sm">
             <div className="text-2xl font-bold text-green-600">
               {filteredChats.filter(c => c.chat_type === 'group').length}
             </div>
             <div className="text-sm text-green-800">Групп</div>
           </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
+          <div className="text-center p-4 bg-purple-50 rounded-lg shadow-sm">
             <div className="text-2xl font-bold text-purple-600">
               {filteredChats.filter(c => c.chat_type === 'supergroup').length}
             </div>
             <div className="text-sm text-purple-800">Супергрупп</div>
           </div>
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
+          <div className="text-center p-4 bg-orange-50 rounded-lg shadow-sm">
             <div className="text-2xl font-bold text-orange-600">
               {filteredChats.filter(c => c.linked_channel_info).length}
             </div>

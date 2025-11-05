@@ -80,3 +80,23 @@ export const useDeleteAdminUser = () => {
     },
   });
 };
+
+// Reset admin user password
+export const useResetAdminPassword = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await api.post<{ 
+        message: string; 
+        new_password: string;
+        email: string;
+      }>(`/admin-users/${id}/reset-password`);
+      return response.data;
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['adminUser', id] });
+    },
+  });
+};

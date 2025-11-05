@@ -3,6 +3,7 @@ import { Send, Users, CheckCircle, XCircle, Clock, AlertTriangle, Upload, Plus, 
 import { useBroadcast, useBroadcastUsersCount, useBroadcastStatus, useMediaUpload } from '../hooks/useBroadcast';
 import { Loading } from '../components/ui/Loading';
 import { InlineKeyboardButton, InlineKeyboardRow, MediaFile } from '../types';
+import { Select } from '../components/ui/Select';
 
 export const Broadcast: React.FC = () => {
   const [message, setMessage] = useState('');
@@ -333,18 +334,16 @@ export const Broadcast: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-gray-700">Тип</label>
-                        <select
-                          value={media.type}
-                          onChange={(e) => setMedia({ ...media, type: e.target.value as 'photo' | 'video' | 'document' })}
-                          className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        >
-                          <option value="photo">Фото</option>
-                          <option value="video">Видео</option>
-                          <option value="document">Документ</option>
-                        </select>
-                      </div>
+                      <Select
+                        label="Тип"
+                        value={media.type}
+                        onChange={(e) => setMedia({ ...media, type: e.target.value as 'photo' | 'video' | 'document' })}
+                        icon={media.type === 'photo' ? <Image className="w-4 h-4" /> : media.type === 'video' ? <Video className="w-4 h-4" /> : <File className="w-4 h-4" />}
+                      >
+                        <option value="photo">Фото</option>
+                        <option value="video">Видео</option>
+                        <option value="document">Документ</option>
+                      </Select>
 
                       <div className="md:col-span-2 space-y-1">
                         <label className="block text-xs font-medium text-gray-700">Подпись</label>

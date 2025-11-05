@@ -4,6 +4,7 @@ import { ArrowLeft, Shield, Calculator, DollarSign, Star, Percent, Zap, Edit, Pl
 import { useSubscriptionPrices } from '../hooks/useSubscriptionPrices';
 import { Loading } from '../components/ui/Loading';
 import { api } from '../utils/api';
+import { Select } from '../components/ui/Select';
 
 interface SubscriptionPrice {
   id: number;
@@ -488,22 +489,18 @@ export const AIModerationPayments: React.FC = () => {
 
           <form onSubmit={(e) => { e.preventDefault(); createNewPrice(); }} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Тип подписки
-                </label>
-                <select
-                  value={newPriceData.subscription_type}
-                  onChange={(e) => setNewPriceData(prev => ({
-                    ...prev,
-                    subscription_type: e.target.value as 'month' | 'year'
-                  }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="month">Месячная</option>
-                  <option value="year">Годовая</option>
-                </select>
-              </div>
+              <Select
+                label="Тип подписки"
+                value={newPriceData.subscription_type}
+                onChange={(e) => setNewPriceData(prev => ({
+                  ...prev,
+                  subscription_type: e.target.value as 'month' | 'year'
+                }))}
+                icon={<Calendar className="w-5 h-5" />}
+              >
+                <option value="month">Месячная</option>
+                <option value="year">Годовая</option>
+              </Select>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

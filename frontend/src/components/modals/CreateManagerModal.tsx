@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, RefreshCw, Copy, Check } from 'lucide-react';
+import { X, RefreshCw, Copy, Check, Shield } from 'lucide-react';
 import { useCreateAdminUser } from '../../hooks/useAdminUsers';
 import { UserRole } from '../../types';
+import { Select } from '../ui/Select';
 
 interface CreateManagerModalProps {
   onClose: () => void;
@@ -295,19 +296,15 @@ export const CreateManagerModal: React.FC<CreateManagerModalProps> = ({ onClose 
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Роль *
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value={UserRole.ADMIN}>Администратор</option>
-              <option value={UserRole.MANAGER}>Менеджер</option>
-            </select>
-          </div>
+          <Select
+            label="Роль *"
+            value={formData.role}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+            icon={<Shield className="w-5 h-5" />}
+          >
+            <option value={UserRole.ADMIN}>Администратор</option>
+            <option value={UserRole.MANAGER}>Менеджер</option>
+          </Select>
 
           <div className="flex items-center">
             <input

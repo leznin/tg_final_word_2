@@ -167,13 +167,20 @@ class VerificationScheduleService:
         # Use local time instead of UTC to match user's timezone
         base_datetime = from_datetime or datetime.now()
         
-        # Combine today's date with the schedule time
+        # If we have a last run time, calculate from it
+        if from_datetime is not None:
+            # Simply add interval_hours to the last run time
+            return from_datetime + timedelta(hours=interval_hours)
+        
+        # For initial schedule creation, find next occurrence of schedule_time
         today = base_datetime.date()
         scheduled_datetime = datetime.combine(today, schedule_time)
         
-        # If scheduled time has passed today, move to next interval
+        # If scheduled time has passed today, move to tomorrow's scheduled time
         if scheduled_datetime <= base_datetime:
-            scheduled_datetime += timedelta(hours=interval_hours)
+            # Move to next day's scheduled time
+            tomorrow = today + timedelta(days=1)
+            scheduled_datetime = datetime.combine(tomorrow, schedule_time)
         
         return scheduled_datetime
 

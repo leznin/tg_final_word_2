@@ -17,6 +17,7 @@ from app.routers.chat_subscriptions import router as chat_subscriptions_router
 from app.routers.broadcast import router as broadcast_router
 from app.routers.mini_app import router as mini_app_router
 from app.routers.user_verification import router as user_verification_router
+from app.routers.verification_schedule import router as verification_schedule_router
 
 api_router = APIRouter()
 
@@ -35,3 +36,4 @@ api_router.include_router(chat_subscriptions_router, prefix="/chat-subscriptions
 api_router.include_router(broadcast_router, prefix="/broadcast", tags=["broadcast"])
 api_router.include_router(mini_app_router, prefix="/mini-app", tags=["mini-app"])
 api_router.include_router(user_verification_router, prefix="/admin/user-verification", tags=["admin-user-verification"])
+api_router.include_router(verification_schedule_router, prefix="/admin/verification-schedule", tags=["admin-verification-schedule"])

@@ -24,6 +24,9 @@ telegram_bot_instance = None
 # Global cleanup task reference
 cleanup_task = None
 
+# Global verification task reference
+verification_task = None
+
 
 def set_telegram_bot(bot_instance):
     """Set telegram bot instance"""
@@ -78,6 +81,87 @@ async def get_chats_service(db):
     return ChatService(db)
 
 
+async def scheduled_user_verification():
+    """Background task to run scheduled user verifications"""
+    while True:
+        try:
+            # Get database session
+            async with async_session() as db:
+                from app.services.user_verification_schedule import VerificationScheduleService
+                from app.services.user_verification import UserVerificationService
+                
+                schedule_service = VerificationScheduleService(db)
+                
+                # Get schedules that should run now
+                schedules_to_run = await schedule_service.get_schedules_to_run()
+                
+                if not schedules_to_run:
+                    continue
+                    
+                print(f"Found {len(schedules_to_run)} verification schedule(s) to run")
+                
+                # Get telegram bot
+                telegram_bot = get_telegram_bot()
+                if not telegram_bot or not telegram_bot.is_running:
+                    print("Telegram bot is not available for scheduled verification")
+                    continue
+                
+                # Run each schedule
+                for schedule in schedules_to_run:
+                    try:
+                        print(f"Running verification schedule {schedule.id}")
+                        
+                        # Create verification service
+                        verification_service = UserVerificationService(telegram_bot.bot, db)
+                        
+                        # Run verification
+                        result = await verification_service.verify_all_active_users(
+                            chat_id=schedule.chat_id,
+                            auto_update=schedule.auto_update,
+                            delay_between_requests=0.5
+                        )
+                        
+                        print(f"Verification schedule {schedule.id} completed: "
+                              f"{result.total_checked} checked, "
+                              f"{result.total_updated} updated, "
+                              f"{result.total_errors} errors")
+                        
+                        # Update last run timestamp
+                        from datetime import datetime
+                        await schedule_service.update_last_run(
+                            schedule.id,
+                            datetime.now()  # Use local time instead of UTC
+                        )
+                        
+                    except Exception as e:
+                        print(f"Error running verification schedule {schedule.id}: {e}")
+                        
+        except Exception as e:
+            print(f"Error in scheduled verification task: {e}")
+        
+        # Wait 60 seconds before next check
+        await asyncio.sleep(60)
+
+
+async def start_verification_task():
+    """Start the background verification task"""
+    global verification_task
+    verification_task = asyncio.create_task(scheduled_user_verification())
+    print("Started scheduled user verification task")
+
+
+async def stop_verification_task():
+    """Stop the background verification task"""
+    global verification_task
+    if verification_task:
+        verification_task.cancel()
+        try:
+            await verification_task
+        except asyncio.CancelledError:
+            pass
+        print("Stopped scheduled user verification task")
+
+
 async def start_cleanup_task():
     """Start the background cleanup task"""
     global cleanup_task
@@ -110,10 +194,14 @@ async def lifespan(app: FastAPI):
 
     # Start background cleanup task
     await start_cleanup_task()
+    
+    # Start background verification task
+    await start_verification_task()
 
     yield
     # Shutdown
     await stop_cleanup_task()
+    await stop_verification_task()
     await bot_instance.stop()
 
 

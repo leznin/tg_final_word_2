@@ -388,14 +388,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             disabled={isSubmitting}
                           />
-                          <input
-                            type="text"
-                            placeholder="Callback data (опционально)"
-                            value={button.callback_data || ''}
-                            onChange={(e) => updateButton(rowIndex, buttonIndex, { callback_data: e.target.value || undefined })}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            disabled={isSubmitting}
-                          />
                           <button
                             type="button"
                             onClick={() => removeButtonFromRow(rowIndex, buttonIndex)}

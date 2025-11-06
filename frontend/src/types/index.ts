@@ -497,3 +497,75 @@ export interface BroadcastUsersCount {
   count: number;
   description: string;
 }
+
+// Chat Posts
+export interface MediaUpload {
+  type: string; // 'photo', 'video', 'document'
+  url?: string;
+  file_id?: string;
+  filename?: string;
+}
+
+export interface ChatPostCreate {
+  chat_id: number;
+  content_text?: string;
+  media?: MediaUpload;
+  scheduled_send_at?: string;  // ISO datetime string
+  send_immediately?: boolean;
+  pin_message?: boolean;
+  pin_duration_minutes?: number;
+  delete_after_minutes?: number;
+  reply_markup?: InlineKeyboardMarkup;
+}
+
+export interface ChatPostUpdate {
+  content_text?: string;
+  scheduled_send_at?: string;  // ISO datetime string (for unsent posts)
+  pin_message?: boolean;
+  pin_duration_minutes?: number;
+  delete_after_minutes?: number;
+  reply_markup?: InlineKeyboardMarkup;
+}
+
+export interface ChatPost {
+  id: number;
+  chat_id: number;
+  telegram_message_id?: number;
+  scheduled_send_at?: string;
+  is_sent: boolean;
+  sent_at?: string;
+  content_text?: string;
+  media_type?: string;
+  media_file_id?: string;
+  media_url?: string;
+  media_filename?: string;
+  is_pinned: boolean;
+  pin_duration_minutes?: number;
+  scheduled_unpin_at?: string;
+  delete_after_minutes?: number;
+  scheduled_delete_at?: string;
+  reply_markup?: InlineKeyboardMarkup | string;  // Can be object or JSON string
+  created_by_user_id: number;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatPostListResponse {
+  posts: ChatPost[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface PinPostRequest {
+  pin_duration_minutes?: number;
+}
+
+export interface MediaUploadResponse {
+  url: string;
+  filename: string;
+  content_type: string;
+  size: number;
+}

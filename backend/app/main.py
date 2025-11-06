@@ -27,6 +27,9 @@ cleanup_task = None
 # Global verification task reference
 verification_task = None
 
+# Global chat posts task reference
+chat_posts_task = None
+
 
 def set_telegram_bot(bot_instance):
     """Set telegram bot instance"""
@@ -143,6 +146,32 @@ async def scheduled_user_verification():
         await asyncio.sleep(60)
 
 
+async def process_chat_posts_scheduled_actions():
+    """Background task to process scheduled chat post actions (unpin/delete)"""
+    while True:
+        try:
+            # Get database session
+            async with async_session() as db:
+                from app.services.chat_posts import ChatPostService
+                
+                # Get telegram bot
+                telegram_bot = get_telegram_bot()
+                if not telegram_bot or not telegram_bot.is_running:
+                    print("Telegram bot is not available for chat posts processing")
+                    await asyncio.sleep(60)
+                    continue
+                
+                # Create service and process scheduled actions
+                chat_post_service = ChatPostService(db, telegram_bot.bot)
+                await chat_post_service.process_scheduled_actions()
+                
+        except Exception as e:
+            print(f"Error in chat posts scheduled actions task: {e}")
+        
+        # Wait 60 seconds before next check
+        await asyncio.sleep(60)
+
+
 async def start_verification_task():
     """Start the background verification task"""
     global verification_task
@@ -160,6 +189,25 @@ async def stop_verification_task():
         except asyncio.CancelledError:
             pass
         print("Stopped scheduled user verification task")
+
+
+async def start_chat_posts_task():
+    """Start the background chat posts processing task"""
+    global chat_posts_task
+    chat_posts_task = asyncio.create_task(process_chat_posts_scheduled_actions())
+    print("Started chat posts scheduled actions task")
+
+
+async def stop_chat_posts_task():
+    """Stop the background chat posts processing task"""
+    global chat_posts_task
+    if chat_posts_task:
+        chat_posts_task.cancel()
+        try:
+            await chat_posts_task
+        except asyncio.CancelledError:
+            pass
+        print("Stopped chat posts scheduled actions task")
 
 
 async def start_cleanup_task():
@@ -197,11 +245,15 @@ async def lifespan(app: FastAPI):
     
     # Start background verification task
     await start_verification_task()
+    
+    # Start background chat posts task
+    await start_chat_posts_task()
 
     yield
     # Shutdown
     await stop_cleanup_task()
     await stop_verification_task()
+    await stop_chat_posts_task()
     await bot_instance.stop()
 
 

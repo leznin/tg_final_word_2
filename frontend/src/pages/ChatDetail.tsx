@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, History } from 'lucide-react';
+import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, History, MessageSquare } from 'lucide-react';
 import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { Select } from '../components/ui/Select';
+import { ChatPostsList } from '../components/chat/ChatPostsList';
+import { CreatePostModal } from '../components/modals/CreatePostModal';
 
 export const ChatDetail: React.FC = () => {
   const { chatId } = useParams<{ chatId: string }>();
@@ -11,6 +13,7 @@ export const ChatDetail: React.FC = () => {
   const { data, isLoading } = useChatDetail(chatId!);
   const [showChannelSelector, setShowChannelSelector] = useState(false);
   const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
   const [subscriptionForm, setSubscriptionForm] = useState({
     subscription_type: 'month' as 'month' | 'year',
     price_stars: 1,
@@ -833,6 +836,33 @@ export const ChatDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Посты чата */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">Посты чата</h2>
+          <button
+            onClick={() => setShowCreatePostModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Создать пост</span>
+          </button>
+        </div>
+
+        <ChatPostsList chatId={chat.id} />
+      </div>
+
+      {/* Create Post Modal */}
+      {showCreatePostModal && (
+        <CreatePostModal
+          chatId={chat.id}
+          onClose={() => setShowCreatePostModal(false)}
+          onSuccess={() => {
+            setShowCreatePostModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };

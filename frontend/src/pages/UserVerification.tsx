@@ -107,6 +107,44 @@ export const UserVerification: React.FC = () => {
     };
   }, [pollingInterval]);
   
+  // Poll for verification status when on schedule tab
+  useEffect(() => {
+    let statusCheckInterval: NodeJS.Timeout | null = null;
+    
+    if (activeTab === 'schedule') {
+      // Check status every 2 seconds when on schedule tab
+      statusCheckInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/v1/admin/user-verification/status');
+          const data = await response.json();
+          
+          if (data.is_running) {
+            setVerificationProgress(data);
+            // If not already polling, start polling
+            if (!pollingInterval && !verifyBulkLoading) {
+              setVerifyBulkLoading(true);
+            }
+          } else {
+            // If verification just stopped, reload schedules to show updated last_run_at
+            if (verificationProgress?.is_running) {
+              loadSchedules();
+              setVerifyBulkLoading(false);
+            }
+            setVerificationProgress(null);
+          }
+        } catch (error) {
+          console.error('Error checking verification status:', error);
+        }
+      }, 2000);
+    }
+    
+    return () => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+      }
+    };
+  }, [activeTab, verificationProgress?.is_running]);
+  
   const startProgressPolling = () => {
     // Clear any existing interval
     if (pollingInterval) {
@@ -584,6 +622,47 @@ export const UserVerification: React.FC = () => {
       {/* Schedule Tab */}
       {activeTab === 'schedule' && (
         <div className="space-y-4">
+          {/* Progress Bar for Scheduled Verification */}
+          {verificationProgress && verificationProgress.is_running && (
+            <div className="bg-white rounded-lg shadow-sm p-6 border-2 border-blue-300">
+              <div className="flex items-center gap-2 mb-3">
+                <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Выполняется проверка по расписанию
+                </h3>
+              </div>
+              <ProgressBar
+                progress={verificationProgress.progress_percentage || 0}
+                total={verificationProgress.total_users}
+                current={verificationProgress.current_progress}
+                label="Проверка пользователей"
+                showPercentage={true}
+                showCount={true}
+                estimatedTimeRemaining={verificationProgress.estimated_time_remaining}
+                size="md"
+                variant="default"
+              />
+              <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-gray-600">
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>Обновлено: {verificationProgress.updated_users || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                  <span>Изменений: {verificationProgress.users_with_changes || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                  <span>Ошибок: {verificationProgress.users_with_errors || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Users className="w-4 h-4 text-blue-500" />
+                  <span>Проверено: {verificationProgress.checked_users || 0}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Расписания проверок</h3>

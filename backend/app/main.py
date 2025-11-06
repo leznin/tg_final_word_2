@@ -92,6 +92,7 @@ async def scheduled_user_verification():
             async with async_session() as db:
                 from app.services.user_verification_schedule import VerificationScheduleService
                 from app.services.user_verification import UserVerificationService
+                import app.routers.user_verification as verification_router
                 
                 schedule_service = VerificationScheduleService(db)
                 
@@ -114,8 +115,13 @@ async def scheduled_user_verification():
                     try:
                         print(f"Running verification schedule {schedule.id}")
                         
-                        # Create verification service
-                        verification_service = UserVerificationService(telegram_bot.bot, db)
+                        # Use global verification service instance for progress tracking
+                        # This allows the /status endpoint to show real-time progress
+                        if verification_router._verification_service_instance is None or \
+                           not verification_router._verification_service_instance.is_running:
+                            verification_router._verification_service_instance = UserVerificationService(telegram_bot.bot, db)
+                        
+                        verification_service = verification_router._verification_service_instance
                         
                         # Run verification
                         result = await verification_service.verify_all_active_users(

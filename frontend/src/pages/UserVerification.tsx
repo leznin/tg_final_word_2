@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Users, CheckCircle, XCircle, AlertTriangle, RefreshCw, Clock, Calendar, Settings, MessageSquare } from 'lucide-react';
 import { Loading } from '../components/ui/Loading';
 import { Select } from '../components/ui/Select';
+import { ProgressBar } from '../components/ui/ProgressBar';
 
 interface Chat {
   id: number;
@@ -69,6 +70,10 @@ export const UserVerification: React.FC = () => {
   const [bulkAutoUpdate, setBulkAutoUpdate] = useState(true);
   const [verifyBulkLoading, setVerifyBulkLoading] = useState(false);
   
+  // Progress tracking state
+  const [verificationProgress, setVerificationProgress] = useState<any>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  
   // Results state
   const [results, setResults] = useState<UserVerificationResult[]>([]);
   const [stats, setStats] = useState<BulkVerificationResponse | null>(null);
@@ -91,6 +96,49 @@ export const UserVerification: React.FC = () => {
     loadChats();
     loadSchedules();
   }, []);
+  
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
+  
+  const startProgressPolling = () => {
+    // Clear any existing interval
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+    
+    // Start polling for progress every 500ms
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/v1/admin/user-verification/status');
+        const data = await response.json();
+        setVerificationProgress(data);
+        
+        // Stop polling if verification is complete
+        if (!data.is_running) {
+          clearInterval(interval);
+          setPollingInterval(null);
+        }
+      } catch (error) {
+        console.error('Error fetching verification status:', error);
+      }
+    }, 500);
+    
+    setPollingInterval(interval);
+  };
+  
+  const stopProgressPolling = () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+    }
+    setVerificationProgress(null);
+  };
   
   const loadChats = async () => {
     try {
@@ -150,6 +198,9 @@ export const UserVerification: React.FC = () => {
   
   const verifyActiveUsers = async () => {
     setVerifyBulkLoading(true);
+    setVerificationProgress({ is_running: true, current_progress: 0, total_users: 0 });
+    startProgressPolling();
+    
     try {
       const response = await fetch('/api/v1/admin/user-verification/verify-active-users', {
         method: 'POST',
@@ -174,6 +225,7 @@ export const UserVerification: React.FC = () => {
       alert('Ошибка проверки: ' + error.message);
     } finally {
       setVerifyBulkLoading(false);
+      stopProgressPolling();
     }
   };
   
@@ -274,6 +326,28 @@ export const UserVerification: React.FC = () => {
     if (filterType === 'changes') return results.filter(r => r.has_changes);
     if (filterType === 'errors') return results.filter(r => r.error);
     return results;
+  };
+  
+  const formatTimeUntil = (dateString: string): string => {
+    const now = new Date();
+    const target = new Date(dateString);
+    const diffMs = target.getTime() - now.getTime();
+    
+    if (diffMs < 0) return 'прошло';
+    
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 0) {
+      const hours = diffHours % 24;
+      return `через ${diffDays}д ${hours}ч`;
+    } else if (diffHours > 0) {
+      const minutes = diffMinutes % 60;
+      return `через ${diffHours}ч ${minutes}м`;
+    } else {
+      return `через ${diffMinutes}м`;
+    }
   };
 
   if (loadingChats) {
@@ -416,6 +490,41 @@ export const UserVerification: React.FC = () => {
               ))}
             </Select>
           </div>
+          
+          {/* Progress Bar */}
+          {verificationProgress && verificationProgress.is_running && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <ProgressBar
+                progress={verificationProgress.progress_percentage || 0}
+                total={verificationProgress.total_users}
+                current={verificationProgress.current_progress}
+                label="Проверка пользователей"
+                showPercentage={true}
+                showCount={true}
+                estimatedTimeRemaining={verificationProgress.estimated_time_remaining}
+                size="md"
+                variant="default"
+              />
+              <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-gray-600">
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>Обновлено: {verificationProgress.updated_users || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                  <span>Изменений: {verificationProgress.users_with_changes || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                  <span>Ошибок: {verificationProgress.users_with_errors || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Users className="w-4 h-4 text-blue-500" />
+                  <span>Проверено: {verificationProgress.checked_users || 0}</span>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -599,14 +708,25 @@ export const UserVerification: React.FC = () => {
                         <div className="text-xs text-gray-500 space-y-1 ml-1">
                           {schedule.last_run_at && (
                             <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              Последний: {new Date(schedule.last_run_at).toLocaleString('ru-RU')}
+                              <Calendar className="w-3 h-3 text-gray-400" />
+                              <span className="text-gray-600">Последний запуск:</span>
+                              <span className="font-medium">{new Date(schedule.last_run_at).toLocaleString('ru-RU')}</span>
                             </div>
                           )}
                           {schedule.next_run_at && (
-                            <div className="flex items-center gap-1 font-medium text-blue-600">
-                              <Calendar className="w-3 h-3" />
-                              Следующий: {new Date(schedule.next_run_at).toLocaleString('ru-RU')}
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-blue-500" />
+                              <span className="text-gray-600">Следующий запуск:</span>
+                              <span className="font-medium text-blue-600">{new Date(schedule.next_run_at).toLocaleString('ru-RU')}</span>
+                              <span className="text-gray-400">
+                                ({formatTimeUntil(schedule.next_run_at)})
+                              </span>
+                            </div>
+                          )}
+                          {!schedule.last_run_at && (
+                            <div className="flex items-center gap-1 text-gray-400">
+                              <AlertTriangle className="w-3 h-3" />
+                              <span>Ещё не запускалось</span>
                             </div>
                           )}
                         </div>

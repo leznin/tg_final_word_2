@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, isMobile = fals
                   to={item.href}
                   onClick={handleNavClick}
                   className={({ isActive }) =>
-                    `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                    `flex items-center px-4 py-3 text-xs font-medium rounded-lg transition-colors ${
                       isActive
                         ? 'bg-blue-600 text-white'
                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'

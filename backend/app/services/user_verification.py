@@ -34,6 +34,17 @@ class UserVerificationService:
         self.bot = bot
         self.db = db
         self.telegram_user_service = TelegramUserService(db)
+        
+        # Progress tracking
+        self.is_running = False
+        self.current_progress = 0
+        self.total_users = 0
+        self.checked_users = 0
+        self.updated_users = 0
+        self.users_with_changes = 0
+        self.users_with_errors = 0
+        self.started_at = None
+        self.estimated_time_remaining = None
 
     async def verify_user_info(
         self,
@@ -198,7 +209,14 @@ class UserVerificationService:
         Returns:
             BulkVerificationResponse with all verification results
         """
+        self.is_running = True
+        self.current_progress = 0
+        self.checked_users = 0
+        self.updated_users = 0
+        self.users_with_changes = 0
+        self.users_with_errors = 0
         started_at = datetime.utcnow()
+        self.started_at = started_at
         results = []
 
         try:
@@ -221,9 +239,12 @@ class UserVerificationService:
             # Execute query
             result = await self.db.execute(query)
             members_data = result.all()
+            
+            # Set total users
+            self.total_users = len(members_data)
 
             # Verify each user
-            for member, chat, telegram_user in members_data:
+            for idx, (member, chat, telegram_user) in enumerate(members_data, 1):
                 # Verify user in this specific chat
                 verification_result = await self.verify_user_info(
                     telegram_user_id=member.telegram_user_id,
@@ -231,6 +252,23 @@ class UserVerificationService:
                     auto_update=auto_update
                 )
                 results.append(verification_result)
+                
+                # Update progress tracking
+                self.current_progress = idx
+                self.checked_users = idx
+                if verification_result.is_updated:
+                    self.updated_users += 1
+                if verification_result.has_changes:
+                    self.users_with_changes += 1
+                if verification_result.error:
+                    self.users_with_errors += 1
+                
+                # Calculate estimated time remaining
+                if idx > 0:
+                    elapsed = (datetime.utcnow() - started_at).total_seconds()
+                    avg_time_per_user = elapsed / idx
+                    remaining_users = self.total_users - idx
+                    self.estimated_time_remaining = remaining_users * avg_time_per_user
 
                 # Add delay to avoid rate limiting
                 if delay_between_requests > 0:
@@ -269,6 +307,9 @@ class UserVerificationService:
                 completed_at=completed_at,
                 duration_seconds=duration_seconds
             )
+        finally:
+            self.is_running = False
+            self.estimated_time_remaining = None
 
     async def get_active_users_with_chats(
         self,
@@ -332,3 +373,41 @@ class UserVerificationService:
             skip=skip,
             limit=limit
         )
+
+    def get_status(self) -> Dict[str, Any]:
+        """
+        Get current verification status with progress information
+        
+        Returns:
+            Dictionary with current status, progress, and statistics
+        """
+        if not self.is_running:
+            return {
+                "is_running": False,
+                "current_progress": 0,
+                "total_users": 0,
+                "checked_users": 0,
+                "updated_users": 0,
+                "users_with_changes": 0,
+                "users_with_errors": 0,
+                "progress_percentage": 0,
+                "estimated_time_remaining": None,
+                "started_at": None
+            }
+        
+        progress_percentage = 0
+        if self.total_users > 0:
+            progress_percentage = round((self.current_progress / self.total_users) * 100, 2)
+        
+        return {
+            "is_running": self.is_running,
+            "current_progress": self.current_progress,
+            "total_users": self.total_users,
+            "checked_users": self.checked_users,
+            "updated_users": self.updated_users,
+            "users_with_changes": self.users_with_changes,
+            "users_with_errors": self.users_with_errors,
+            "progress_percentage": progress_percentage,
+            "estimated_time_remaining": self.estimated_time_remaining,
+            "started_at": self.started_at.isoformat() if self.started_at else None
+        }

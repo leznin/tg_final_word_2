@@ -19,11 +19,30 @@ from app.services.chats import ChatService
 
 router = APIRouter()
 
+# Global verification service instance for progress tracking
+_verification_service_instance: Optional[UserVerificationService] = None
+
 
 def get_telegram_bot():
     """Get telegram bot instance"""
     from app.main import get_telegram_bot as get_bot
     return get_bot()
+
+
+def get_verification_service(db: AsyncSession = Depends(get_db)) -> UserVerificationService:
+    """Get or create verification service instance"""
+    global _verification_service_instance
+    telegram_bot = get_telegram_bot()
+    
+    if not telegram_bot or not telegram_bot.is_running:
+        raise HTTPException(status_code=503, detail="Telegram bot is not available")
+    
+    # Always create new instance with current db session
+    # but reuse the same instance for progress tracking during a verification run
+    if _verification_service_instance is None or not _verification_service_instance.is_running:
+        _verification_service_instance = UserVerificationService(telegram_bot.bot, db)
+    
+    return _verification_service_instance
 
 
 @router.post("/verify-user", response_model=UserVerificationResult)
@@ -73,7 +92,7 @@ async def verify_single_user(
 async def verify_active_users(
     request: BulkVerificationRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    verification_service: UserVerificationService = Depends(get_verification_service)
 ):
     """
     Verify multiple active users using Telegram API getChatMember
@@ -87,14 +106,6 @@ async def verify_active_users(
     Returns:
         BulkVerificationResponse with statistics and detailed results for each user
     """
-    # Get telegram bot instance
-    telegram_bot = get_telegram_bot()
-    if not telegram_bot or not telegram_bot.is_running:
-        raise HTTPException(status_code=503, detail="Telegram bot is not available")
-
-    # Create verification service
-    verification_service = UserVerificationService(telegram_bot.bot, db)
-
     # Verify users
     result = await verification_service.verify_all_active_users(
         chat_id=request.chat_id,
@@ -168,3 +179,36 @@ async def get_available_chats(
             if chat.is_active
         ]
     }
+
+
+@router.get("/status")
+async def get_verification_status():
+    """
+    Get current verification progress status
+    
+    Returns current status of verification process including:
+    - is_running: whether verification is currently running
+    - current_progress: number of users checked so far
+    - total_users: total number of users to check
+    - progress_percentage: completion percentage
+    - estimated_time_remaining: estimated seconds until completion
+    
+    This endpoint can be polled while verification is running to show progress.
+    """
+    global _verification_service_instance
+    
+    if _verification_service_instance is None:
+        return {
+            "is_running": False,
+            "current_progress": 0,
+            "total_users": 0,
+            "checked_users": 0,
+            "updated_users": 0,
+            "users_with_changes": 0,
+            "users_with_errors": 0,
+            "progress_percentage": 0,
+            "estimated_time_remaining": None,
+            "started_at": None
+        }
+    
+    return _verification_service_instance.get_status()

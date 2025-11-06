@@ -685,6 +685,8 @@ async def handle_new_message(message: types.Message, db: AsyncSession) -> None:
             await member_service.create_or_update_member_from_telegram(chat.id, telegram_user_data)
 
         except Exception as e:
+            # Rollback the session if there was an error to allow subsequent operations
+            await db.rollback()
             print(f"Error logging chat member {message.from_user.id}: {e}")
 
     # Save message to database
@@ -734,4 +736,6 @@ async def handle_new_message(message: types.Message, db: AsyncSession) -> None:
         await message_service.create_message_from_telegram(chat.id, message_dict)
 
     except Exception as e:
+        # Rollback the session if there was an error
+        await db.rollback()
         print(f"Error saving message {message.message_id}: {e}")

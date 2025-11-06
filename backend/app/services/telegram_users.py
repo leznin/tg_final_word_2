@@ -4,6 +4,7 @@ Telegram users service with business logic
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from app.models.telegram_users import TelegramUser
 from app.models.telegram_user_history import TelegramUserHistory
@@ -84,6 +85,41 @@ class TelegramUserService:
             db_user = TelegramUser(**user_data.model_dump())
             self.db.add(db_user)
 
-        await self.db.commit()
-        await self.db.refresh(db_user)
-        return db_user
+        try:
+            await self.db.commit()
+            await self.db.refresh(db_user)
+            return db_user
+        except IntegrityError as e:
+            # Handle race condition: user was created by another request
+            await self.db.rollback()
+            print(f"IntegrityError when creating user {telegram_user_data.telegram_user_id}, retrying as update...")
+            
+            # Fetch the user that was created by the other request
+            db_user = await self.get_telegram_user(telegram_user_data.telegram_user_id)
+            if db_user:
+                # Record history changes for tracked fields
+                await self._record_history_change(db_user.telegram_user_id, 'first_name', db_user.first_name, telegram_user_data.first_name)
+                await self._record_history_change(db_user.telegram_user_id, 'last_name', db_user.last_name, telegram_user_data.last_name)
+                await self._record_history_change(db_user.telegram_user_id, 'username', db_user.username, telegram_user_data.username)
+
+                # Update the user
+                db_user.is_bot = telegram_user_data.is_bot
+                db_user.first_name = telegram_user_data.first_name
+                db_user.last_name = telegram_user_data.last_name
+                db_user.username = telegram_user_data.username
+                db_user.language_code = telegram_user_data.language_code
+                db_user.is_premium = telegram_user_data.is_premium
+                db_user.added_to_attachment_menu = telegram_user_data.added_to_attachment_menu
+                db_user.can_join_groups = telegram_user_data.can_join_groups
+                db_user.can_read_all_group_messages = telegram_user_data.can_read_all_group_messages
+                db_user.supports_inline_queries = telegram_user_data.supports_inline_queries
+                db_user.can_connect_to_business = telegram_user_data.can_connect_to_business
+                db_user.has_main_web_app = telegram_user_data.has_main_web_app
+                db_user.account_creation_date = telegram_user_data.account_creation_date
+                
+                await self.db.commit()
+                await self.db.refresh(db_user)
+                return db_user
+            else:
+                # This shouldn't happen, but re-raise if we can't find the user
+                raise

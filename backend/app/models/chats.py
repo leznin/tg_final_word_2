@@ -41,8 +41,9 @@ class Chat(Base):
     bot_permissions = Column(JSON, nullable=True)  # Bot permissions as JSON
     last_info_update = Column(DateTime(timezone=True), nullable=True)
 
-    # Relationship with User who added the bot
-    added_by_user = relationship("User", backref="added_chats")
+    # Relationship with User who added the bot - use lazy='raise' to prevent implicit IO
+    added_by_user = relationship("User", backref="added_chats", lazy='raise')
 
-    # Self-referencing relationship for linked channel
-    linked_channel = relationship("Chat", remote_side=[id], backref="linked_chats", foreign_keys=[linked_channel_id])
+    # Self-referencing relationship for linked channel - use lazy='raise' to prevent implicit IO
+    linked_channel = relationship("Chat", remote_side=[id], backref="linked_chats", foreign_keys=[linked_channel_id], lazy='raise')
+

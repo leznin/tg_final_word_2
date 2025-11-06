@@ -21,7 +21,8 @@ class MessageService:
         db_message = Message(**message_data.model_dump())
         self.db.add(db_message)
         await self.db.commit()
-        await self.db.refresh(db_message)
+        # Don't refresh to avoid triggering lazy-loaded relationships
+        # await self.db.refresh(db_message)
         return db_message
 
     async def get_message(self, message_id: int) -> Optional[Message]:

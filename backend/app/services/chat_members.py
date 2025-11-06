@@ -24,7 +24,8 @@ class ChatMemberService:
         db_member = ChatMember(**member_data.model_dump())
         self.db.add(db_member)
         await self.db.commit()
-        await self.db.refresh(db_member)
+        # Don't refresh to avoid triggering lazy-loaded relationships
+        # await self.db.refresh(db_member)
         return db_member
 
     async def get_chat_member(self, member_id: int) -> Optional[ChatMember]:
@@ -109,8 +110,10 @@ class ChatMemberService:
             db_member.left_at = None  # Clear the left timestamp since user is back
 
         await self.db.commit()
-        await self.db.refresh(db_member)
+        # Don't refresh to avoid triggering lazy-loaded relationships
+        # await self.db.refresh(db_member)
         return db_member
+
 
     async def update_member_status(self, chat_id: int, telegram_user_id: int, status: str, left_at: datetime = None) -> Optional[ChatMember]:
         """Update member status (left, banned, kicked)"""
@@ -124,7 +127,9 @@ class ChatMemberService:
                 db_member.left_at = datetime.now()
 
             await self.db.commit()
-            await self.db.refresh(db_member)
+            # Don't refresh to avoid triggering lazy-loaded relationships
+            # await self.db.refresh(db_member)
+
 
         return db_member
 

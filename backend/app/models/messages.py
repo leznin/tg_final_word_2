@@ -25,5 +25,6 @@ class Message(Base):
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
-    # Relationship with Chat
-    chat = relationship("Chat", backref="messages")
+    # Relationship with Chat - use lazy='raise' to prevent implicit IO
+    chat = relationship("Chat", backref="messages", lazy='raise')
+

@@ -24,6 +24,7 @@ class ChatMember(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relationships
-    chat = relationship("Chat", backref="members")
-    telegram_user = relationship("TelegramUser", backref="chat_memberships")
+    # Relationships - use lazy='raise' to prevent implicit IO in async context
+    chat = relationship("Chat", backref="members", lazy='raise')
+    telegram_user = relationship("TelegramUser", backref="chat_memberships", lazy='raise')
+

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Pin, Edit2, Trash2, Clock, Image as ImageIcon, Video, File as FileIcon, AlertCircle } from 'lucide-react';
+import { Pin, Edit2, Trash2, Clock, Image as ImageIcon, Video, File as FileIcon } from 'lucide-react';
 import { ChatPost } from '../../types';
 import { useDeleteChatPost, usePinChatPost, useUnpinChatPost } from '../../hooks/useChatPosts';
 import { EditPostModal } from '../modals/EditPostModal';
@@ -13,10 +13,14 @@ interface ChatPostCardProps {
 export const ChatPostCard: React.FC<ChatPostCardProps> = ({ post, onUpdate }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [timeUntilAction, setTimeUntilAction] = useState<string>('');
+  const [isExpanded, setIsExpanded] = useState(false);
   
   const deletePostMutation = useDeleteChatPost();
   const pinPostMutation = usePinChatPost();
   const unpinPostMutation = useUnpinChatPost();
+  
+  // Константы для обрезки текста
+  const MAX_TEXT_LENGTH = 100;
 
   // Update countdown timer
   useEffect(() => {
@@ -85,9 +89,9 @@ export const ChatPostCard: React.FC<ChatPostCardProps> = ({ post, onUpdate }) =>
   };
 
   const getMediaIcon = () => {
-    if (post.media_type === 'photo') return <ImageIcon className="h-4 w-4" />;
-    if (post.media_type === 'video') return <Video className="h-4 w-4" />;
-    if (post.media_type === 'document') return <FileIcon className="h-4 w-4" />;
+    if (post.media_type === 'photo') return <ImageIcon className="h-3 w-3" />;
+    if (post.media_type === 'video') return <Video className="h-3 w-3" />;
+    if (post.media_type === 'document') return <FileIcon className="h-3 w-3" />;
     return null;
   };
 
@@ -102,19 +106,25 @@ export const ChatPostCard: React.FC<ChatPostCardProps> = ({ post, onUpdate }) =>
     });
   };
 
+  // Функция для обрезки текста
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+      <div className="bg-white border border-gray-200 rounded-lg p-2 hover:shadow-md transition-shadow text-xs">
         {/* Status Badge */}
         {!post.is_sent && (
-          <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-blue-600" />
-              <div className="flex-1">
-                <p className="text-xs font-medium text-blue-900">Запланирован</p>
+          <div className="mb-1.5 bg-blue-50 border border-blue-200 rounded px-1.5 py-1">
+            <div className="flex items-center space-x-1.5">
+              <Clock className="h-3 w-3 text-blue-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-blue-900">Запланирован</p>
                 {post.scheduled_send_at && (
-                  <p className="text-xs text-blue-700">
-                    Отправка: {formatDate(post.scheduled_send_at)}
+                  <p className="text-[10px] text-blue-700 truncate">
+                    {formatDate(post.scheduled_send_at)}
                   </p>
                 )}
               </div>
@@ -123,69 +133,69 @@ export const ChatPostCard: React.FC<ChatPostCardProps> = ({ post, onUpdate }) =>
         )}
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center space-x-2">
+        <div className="flex items-start justify-between mb-1.5">
+          <div className="flex items-center space-x-1 flex-wrap gap-1">
             {post.is_pinned && (
-              <div className="flex items-center space-x-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
-                <Pin className="h-3 w-3" />
-                <span>Закреплено</span>
+              <div className="flex items-center space-x-0.5 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                <Pin className="h-2.5 w-2.5" />
+                <span>Pin</span>
               </div>
             )}
             {post.media_type && (
-              <div className="flex items-center space-x-1 bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs">
+              <div className="flex items-center space-x-0.5 bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full text-[10px]">
                 {getMediaIcon()}
-                <span>{post.media_type}</span>
               </div>
             )}
           </div>
           
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-0.5 flex-shrink-0">
             <button
               onClick={() => setShowEditModal(true)}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-0.5 hover:bg-gray-100 rounded transition-colors"
               title="Редактировать"
             >
-              <Edit2 className="h-4 w-4 text-gray-600" />
+              <Edit2 className="h-3 w-3 text-gray-600" />
             </button>
             <button
               onClick={handleTogglePin}
               disabled={pinPostMutation.isPending || unpinPostMutation.isPending}
-              className="p-1.5 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+              className="p-0.5 hover:bg-blue-100 rounded transition-colors disabled:opacity-50"
               title={post.is_pinned ? 'Открепить' : 'Закрепить'}
             >
-              <Pin className={`h-4 w-4 ${post.is_pinned ? 'text-blue-600' : 'text-gray-600'}`} />
+              <Pin className={`h-3 w-3 ${post.is_pinned ? 'text-blue-600' : 'text-gray-600'}`} />
             </button>
             <button
               onClick={handleDelete}
               disabled={deletePostMutation.isPending}
-              className="p-1.5 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+              className="p-0.5 hover:bg-red-100 rounded transition-colors disabled:opacity-50"
               title="Удалить"
             >
-              <Trash2 className="h-4 w-4 text-red-600" />
+              <Trash2 className="h-3 w-3 text-red-600" />
             </button>
           </div>
         </div>
 
         {/* Media Preview */}
         {post.media_type && post.media_url && (
-          <div className="mb-3 bg-gray-50 rounded-lg overflow-hidden">
+          <div className="mb-1.5 bg-gray-50 rounded overflow-hidden">
             {post.media_type === 'photo' && (
               <img 
                 src={getMediaUrl(post.media_url)} 
                 alt="Post media" 
-                className="w-full h-48 object-cover rounded-lg"
+                className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setIsExpanded(!isExpanded)}
                 onError={(e) => {
                   // Fallback if image fails to load
                   e.currentTarget.style.display = 'none';
                   const parent = e.currentTarget.parentElement;
                   if (parent) {
                     parent.innerHTML = `
-                      <div class="flex items-center justify-center h-48 bg-gray-100">
+                      <div class="flex items-center justify-center h-24 bg-gray-100">
                         <div class="text-center">
-                          <svg class="h-12 w-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="h-6 w-6 text-gray-400 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          <p class="text-sm text-gray-500">Изображение недоступно</p>
+                          <p class="text-[10px] text-gray-500">Недоступно</p>
                         </div>
                       </div>
                     `;
@@ -199,18 +209,18 @@ export const ChatPostCard: React.FC<ChatPostCardProps> = ({ post, onUpdate }) =>
                 <video 
                   src={getMediaUrl(post.media_url)}
                   controls
-                  className="w-full h-48 object-cover rounded-lg"
+                  className="w-full h-24 object-cover rounded"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                     const parent = e.currentTarget.parentElement;
                     if (parent) {
                       parent.innerHTML = `
-                        <div class="flex items-center justify-center h-48 bg-gray-100">
+                        <div class="flex items-center justify-center h-24 bg-gray-100">
                           <div class="text-center">
-                            <svg class="h-12 w-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="h-6 w-6 text-gray-400 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                             </svg>
-                            <p class="text-sm text-gray-500">Видео недоступно</p>
+                            <p class="text-[10px] text-gray-500">Недоступно</p>
                           </div>
                         </div>
                       `;
@@ -219,31 +229,30 @@ export const ChatPostCard: React.FC<ChatPostCardProps> = ({ post, onUpdate }) =>
                 >
                   Ваш браузер не поддерживает воспроизведение видео.
                 </video>
-                <div className="absolute top-2 left-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs">
-                  <Video className="h-3 w-3 inline mr-1" />
-                  Видео
+                <div className="absolute top-1 left-1 bg-black bg-opacity-60 text-white px-1.5 py-0.5 rounded text-[10px]">
+                  <Video className="h-2.5 w-2.5 inline mr-0.5" />
+                  Video
                 </div>
               </div>
             )}
             
             {post.media_type === 'document' && (
-              <div className="flex items-center space-x-3 p-4 bg-gray-100 rounded-lg">
+              <div className="flex items-center space-x-2 p-2 bg-gray-100 rounded">
                 <div className="flex-shrink-0">
-                  <FileIcon className="h-10 w-10 text-gray-500" />
+                  <FileIcon className="h-6 w-6 text-gray-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-[10px] font-medium text-gray-900 truncate">
                     {post.media_filename || 'document'}
                   </p>
-                  <p className="text-xs text-gray-500">Документ</p>
                   {post.media_url && (
                     <a
                       href={getMediaUrl(post.media_url)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-[10px] text-blue-600 hover:underline"
                     >
-                      Просмотреть документ →
+                      Открыть →
                     </a>
                   )}
                 </div>
@@ -254,39 +263,44 @@ export const ChatPostCard: React.FC<ChatPostCardProps> = ({ post, onUpdate }) =>
 
         {/* Content */}
         {post.content_text && (
-          <div className="mb-3">
-            <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">
-              {post.content_text}
+          <div className="mb-1.5">
+            <p className="text-xs text-gray-800 whitespace-pre-wrap break-words leading-tight">
+              {isExpanded ? post.content_text : truncateText(post.content_text, MAX_TEXT_LENGTH)}
             </p>
+            {post.content_text.length > MAX_TEXT_LENGTH && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-[10px] text-blue-600 hover:text-blue-700 font-medium mt-0.5"
+              >
+                {isExpanded ? 'Свернуть' : 'Ещё...'}
+              </button>
+            )}
           </div>
         )}
 
         {/* Scheduled Actions Alert */}
         {timeUntilAction && (
-          <div className="mb-3 flex items-center space-x-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-            <Clock className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-            <span className="text-xs text-yellow-700">{timeUntilAction}</span>
+          <div className="mb-1.5 flex items-center space-x-1.5 bg-yellow-50 border border-yellow-200 rounded px-1.5 py-1">
+            <Clock className="h-3 w-3 text-yellow-600 flex-shrink-0" />
+            <span className="text-[10px] text-yellow-700 truncate">{timeUntilAction}</span>
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
+        <div className="flex items-center justify-between text-[10px] text-gray-500 pt-1.5 border-t border-gray-100">
           {post.is_sent ? (
             <>
-              <span>Отправлен: {post.sent_at ? formatDate(post.sent_at) : formatDate(post.created_at)}</span>
-              {post.updated_at !== post.created_at && (
-                <span>Изменен: {formatDate(post.updated_at)}</span>
-              )}
+              <span className="truncate">Отправлен: {post.sent_at ? formatDate(post.sent_at) : formatDate(post.created_at)}</span>
             </>
           ) : (
-            <span>Создан: {formatDate(post.created_at)}</span>
+            <span className="truncate">Создан: {formatDate(post.created_at)}</span>
           )}
         </div>
 
         {/* Telegram Message ID */}
         {post.telegram_message_id && (
-          <div className="mt-2 text-xs text-gray-400">
-            ID сообщения: {post.telegram_message_id}
+          <div className="mt-1 text-[10px] text-gray-400 truncate">
+            ID: {post.telegram_message_id}
           </div>
         )}
       </div>

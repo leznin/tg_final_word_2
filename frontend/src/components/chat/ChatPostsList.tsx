@@ -10,7 +10,7 @@ interface ChatPostsListProps {
 
 export const ChatPostsList: React.FC<ChatPostsListProps> = ({ chatId }) => {
   const [page, setPage] = useState(1);
-  const pageSize = 12;
+  const pageSize = 20;
 
   const { data, isLoading, refetch } = useChatPosts(chatId, page, pageSize);
 
@@ -35,7 +35,7 @@ export const ChatPostsList: React.FC<ChatPostsListProps> = ({ chatId }) => {
   return (
     <div className="space-y-4">
       {/* Posts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {data.posts.map((post) => (
           <ChatPostCard
             key={post.id}

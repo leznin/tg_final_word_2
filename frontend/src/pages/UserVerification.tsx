@@ -95,6 +95,7 @@ export const UserVerification: React.FC = () => {
   useEffect(() => {
     loadChats();
     loadSchedules();
+    checkAndRestoreVerificationStatus();
   }, []);
   
   // Cleanup polling on unmount
@@ -123,6 +124,7 @@ export const UserVerification: React.FC = () => {
         if (!data.is_running) {
           clearInterval(interval);
           setPollingInterval(null);
+          setVerifyBulkLoading(false);
         }
       } catch (error) {
         console.error('Error fetching verification status:', error);
@@ -138,6 +140,27 @@ export const UserVerification: React.FC = () => {
       setPollingInterval(null);
     }
     setVerificationProgress(null);
+  };
+  
+  const checkAndRestoreVerificationStatus = async () => {
+    try {
+      const response = await fetch('/api/v1/admin/user-verification/status');
+      const data = await response.json();
+      
+      // If verification is running, restore the UI state
+      if (data.is_running) {
+        setVerificationProgress(data);
+        setVerifyBulkLoading(true);
+        startProgressPolling();
+        
+        // Switch to bulk tab if not already there
+        if (activeTab !== 'bulk') {
+          setActiveTab('bulk');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking verification status:', error);
+    }
   };
   
   const loadChats = async () => {

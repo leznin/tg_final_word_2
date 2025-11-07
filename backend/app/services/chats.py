@@ -295,8 +295,11 @@ class ChatService:
         if welcome_message.lifetime_minutes is not None:
             db_chat.welcome_message_lifetime_minutes = welcome_message.lifetime_minutes
         if welcome_message.buttons is not None:
-            # Convert list of lists to JSON format
-            db_chat.welcome_message_buttons = welcome_message.buttons
+            # Convert Pydantic models to JSON-serializable format
+            db_chat.welcome_message_buttons = [
+                [button.model_dump() for button in row]
+                for row in welcome_message.buttons
+            ]
 
         await self.db.commit()
         await self.db.refresh(db_chat)

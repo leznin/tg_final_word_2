@@ -104,27 +104,59 @@ class WelcomeMessageService:
             reply_markup = self.create_inline_keyboard(chat.welcome_message_buttons)
             
             sent_message = None
+            media_sent_successfully = False
             
-            # Send message with media if configured
+            # Try to send message with media if configured
             if chat.welcome_message_media_type and chat.welcome_message_media_url:
-                if chat.welcome_message_media_type == 'photo':
-                    sent_message = await self.bot.send_photo(
-                        chat_id=chat.telegram_chat_id,
-                        photo=chat.welcome_message_media_url,
-                        caption=message_text,
-                        parse_mode='HTML',
-                        reply_markup=reply_markup
-                    )
-                elif chat.welcome_message_media_type == 'video':
-                    sent_message = await self.bot.send_video(
-                        chat_id=chat.telegram_chat_id,
-                        video=chat.welcome_message_media_url,
-                        caption=message_text,
-                        parse_mode='HTML',
-                        reply_markup=reply_markup
-                    )
-            else:
-                # Send text-only message
+                try:
+                    media_url = chat.welcome_message_media_url.strip()
+                    
+                    # Skip if URL is empty
+                    if not media_url:
+                        print(f"Empty media URL for chat {chat.telegram_chat_id}, will send text-only")
+                    else:
+                        # Convert relative URL to absolute
+                        if media_url.startswith('/'):
+                            # Check if APP_DOMAIN is properly configured
+                            if not settings.APP_DOMAIN or settings.APP_DOMAIN.startswith('http://localhost'):
+                                print(f"⚠️  APP_DOMAIN not configured for production, skipping media for chat {chat.telegram_chat_id}")
+                                print(f"   Media URL: {media_url}")
+                            else:
+                                media_url = f"{settings.APP_DOMAIN}{media_url}"
+                        
+                        # Only try to send media if we have a valid absolute URL
+                        if media_url.startswith(('http://', 'https://')):
+                            if chat.welcome_message_media_type == 'photo':
+                                sent_message = await self.bot.send_photo(
+                                    chat_id=chat.telegram_chat_id,
+                                    photo=media_url,
+                                    caption=message_text,
+                                    parse_mode='HTML',
+                                    reply_markup=reply_markup
+                                )
+                                media_sent_successfully = True
+                            elif chat.welcome_message_media_type == 'video':
+                                sent_message = await self.bot.send_video(
+                                    chat_id=chat.telegram_chat_id,
+                                    video=media_url,
+                                    caption=message_text,
+                                    parse_mode='HTML',
+                                    reply_markup=reply_markup
+                                )
+                                media_sent_successfully = True
+                        else:
+                            print(f"Invalid media URL format for chat {chat.telegram_chat_id}: {media_url}")
+                            
+                except TelegramBadRequest as e:
+                    # Media sending failed, log and fallback to text
+                    print(f"⚠️  Failed to send media for chat {chat.telegram_chat_id}: {e}")
+                    print(f"   Media URL was: {chat.welcome_message_media_url}")
+                    print(f"   Will send text-only message instead")
+                except Exception as e:
+                    print(f"⚠️  Unexpected error sending media for chat {chat.telegram_chat_id}: {e}")
+            
+            # Send text-only message if media wasn't sent
+            if not media_sent_successfully:
                 sent_message = await self.bot.send_message(
                     chat_id=chat.telegram_chat_id,
                     text=message_text,
@@ -145,10 +177,14 @@ class WelcomeMessageService:
             return sent_message.message_id if sent_message else None
             
         except TelegramBadRequest as e:
-            print(f"Failed to send welcome message to chat {chat.telegram_chat_id}: {e}")
+            error_msg = f"Failed to send welcome message to chat {chat.telegram_chat_id}: {e}"
+            if chat.welcome_message_media_url:
+                error_msg += f"\nMedia URL: {chat.welcome_message_media_url}"
+                error_msg += f"\nMedia Type: {chat.welcome_message_media_type}"
+            print(error_msg)
             return None
         except Exception as e:
-            print(f"Unexpected error sending welcome message: {e}")
+            print(f"Unexpected error sending welcome message to chat {chat.telegram_chat_id}: {e}")
             return None
 
     async def schedule_message_deletion(self, chat_id: int, message_id: int, delay_seconds: int):

@@ -61,7 +61,7 @@ class ChatResponse(ChatBase):
     welcome_message_media_type: Optional[str] = None
     welcome_message_media_url: Optional[str] = None
     welcome_message_lifetime_minutes: Optional[int] = None
-    welcome_message_buttons: Optional[dict] = None
+    welcome_message_buttons: Optional[List[List[dict]]] = None  # List of button rows
 
     class Config:
         from_attributes = True

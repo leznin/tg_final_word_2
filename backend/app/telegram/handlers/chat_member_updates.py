@@ -2,7 +2,7 @@
 Chat member updates handler for tracking user joins, leaves, bans, and kicks
 """
 
-from aiogram import Router, types
+from aiogram import Router, types, Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.chats import ChatService
@@ -48,7 +48,7 @@ def get_member_status_change(old_status: str, new_status: str) -> str:
 
 
 @chat_member_router.chat_member()
-async def handle_chat_member_update(update: types.ChatMemberUpdated, db: AsyncSession) -> None:
+async def handle_chat_member_update(update: types.ChatMemberUpdated, db: AsyncSession, bot: Bot) -> None:
     """
     Handle chat member status changes (joins, leaves, bans, kicks)
     """
@@ -103,6 +103,18 @@ async def handle_chat_member_update(update: types.ChatMemberUpdated, db: AsyncSe
             # User joined the chat
             await member_service.create_or_update_member_from_telegram(chat.id, telegram_user_data)
             print(f"  ✅ User {user.id} joined chat {chat.id}")
+            
+            # Send welcome message if enabled
+            try:
+                from app.services.welcome_messages import WelcomeMessageService
+                
+                # Get telegram user from database
+                telegram_user = await telegram_user_service.get_telegram_user(user.id)
+                if telegram_user and chat.welcome_message_enabled:
+                    welcome_service = WelcomeMessageService(db, bot)
+                    await welcome_service.send_welcome_message(chat, telegram_user)
+            except Exception as e:
+                print(f"  ⚠️  Failed to send welcome message: {e}")
 
         elif status_change in ['left', 'banned', 'kicked']:
             # User left, was banned, or kicked

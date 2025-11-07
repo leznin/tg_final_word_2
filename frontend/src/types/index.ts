@@ -21,6 +21,21 @@ export interface ChatSubscriptionCreate {
   telegram_payment_charge_id?: string;
 }
 
+export interface WelcomeMessageButton {
+  text: string;
+  url?: string;
+  callback_data?: string;
+}
+
+export interface WelcomeMessageSettings {
+  enabled: boolean;
+  text?: string;
+  media_type?: 'photo' | 'video' | null;
+  media_url?: string;
+  lifetime_minutes?: number;
+  buttons?: WelcomeMessageButton[][];
+}
+
 export interface Chat {
   id: number;
   telegram_chat_id: number;
@@ -44,6 +59,12 @@ export interface Chat {
   bot_permissions?: BotPermissions;
   last_info_update?: string;
   active_subscription?: ChatSubscription;
+  welcome_message_enabled?: boolean;
+  welcome_message_text?: string;
+  welcome_message_media_type?: string;
+  welcome_message_media_url?: string;
+  welcome_message_lifetime_minutes?: number;
+  welcome_message_buttons?: any;
 }
 
 export interface ChatDetail {
@@ -64,6 +85,12 @@ export interface ChatDetail {
   last_info_update?: string;
   linked_channel?: LinkedChannelWithAdmin | null;
   active_subscription?: ChatSubscription;
+  welcome_message_enabled?: boolean;
+  welcome_message_text?: string;
+  welcome_message_media_type?: string;
+  welcome_message_media_url?: string;
+  welcome_message_lifetime_minutes?: number;
+  welcome_message_buttons?: any;
 }
 
 export interface Moderator {

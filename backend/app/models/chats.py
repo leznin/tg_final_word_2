@@ -41,6 +41,14 @@ class Chat(Base):
     bot_permissions = Column(JSON, nullable=True)  # Bot permissions as JSON
     last_info_update = Column(DateTime(timezone=True), nullable=True)
 
+    # Welcome message settings
+    welcome_message_enabled = Column(Boolean, default=False, nullable=False)
+    welcome_message_text = Column(Text, nullable=True)
+    welcome_message_media_type = Column(String(20), nullable=True)  # 'photo', 'video', None
+    welcome_message_media_url = Column(String(255), nullable=True)
+    welcome_message_lifetime_minutes = Column(Integer, nullable=True)  # Auto-delete after N minutes
+    welcome_message_buttons = Column(JSON, nullable=True)  # Inline keyboard buttons as JSON
+
     # Relationship with User who added the bot - use lazy='raise' to prevent implicit IO
     added_by_user = relationship("User", backref="added_chats", lazy='raise')
 

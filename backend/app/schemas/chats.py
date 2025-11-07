@@ -56,6 +56,12 @@ class ChatResponse(ChatBase):
     invite_link: Optional[str] = None
     bot_permissions: Optional[dict] = None
     last_info_update: Optional[datetime] = None
+    welcome_message_enabled: bool = False
+    welcome_message_text: Optional[str] = None
+    welcome_message_media_type: Optional[str] = None
+    welcome_message_media_url: Optional[str] = None
+    welcome_message_lifetime_minutes: Optional[int] = None
+    welcome_message_buttons: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -104,8 +110,36 @@ class ChatSubscriptionInfo(BaseModel):
     created_at: str
 
 
+class WelcomeMessageButton(BaseModel):
+    """Schema for welcome message inline keyboard button"""
+    text: str
+    url: Optional[str] = None
+    callback_data: Optional[str] = None
+
+
+class WelcomeMessageSettings(BaseModel):
+    """Schema for welcome message settings"""
+    enabled: bool = False
+    text: Optional[str] = None
+    media_type: Optional[str] = None  # 'photo', 'video', None
+    media_url: Optional[str] = None
+    lifetime_minutes: Optional[int] = Field(None, ge=1, le=10080, description="Auto-delete after N minutes (max 7 days)")
+    buttons: Optional[List[List[WelcomeMessageButton]]] = None  # Inline keyboard as rows of buttons
+
+
+class WelcomeMessageUpdate(BaseModel):
+    """Schema for updating welcome message settings"""
+    enabled: Optional[bool] = None
+    text: Optional[str] = None
+    media_type: Optional[str] = None
+    media_url: Optional[str] = None
+    lifetime_minutes: Optional[int] = Field(None, ge=1, le=10080, description="Auto-delete after N minutes (max 7 days)")
+    buttons: Optional[List[List[WelcomeMessageButton]]] = None
+
+
 class ChatWithLinkedChannelResponse(ChatResponse):
     """Schema for chat response with linked channel information and chat moderators"""
     linked_channel_info: Optional[ChannelWithAdmin] = None
     chat_moderators: List[dict] = []  # List of chat moderator info
     active_subscription: Optional[ChatSubscriptionInfo] = None
+    welcome_message: Optional[WelcomeMessageSettings] = None

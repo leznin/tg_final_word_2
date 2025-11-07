@@ -8,7 +8,7 @@ from typing import List, Optional
 from app.models.chats import Chat
 from app.models.users import User
 from app.models.chat_moderators import ChatModerator
-from app.schemas.chats import ChatCreate, ChatUpdate, TelegramChatData, LinkedChannelInfo, ChatWithLinkedChannelResponse, ChannelWithAdmin, ChatSubscriptionInfo
+from app.schemas.chats import ChatCreate, ChatUpdate, TelegramChatData, LinkedChannelInfo, ChatWithLinkedChannelResponse, ChannelWithAdmin, ChatSubscriptionInfo, WelcomeMessageUpdate, WelcomeMessageSettings
 from app.services.chat_subscriptions import ChatSubscriptionsService
 
 
@@ -248,6 +248,18 @@ class ChatService:
 
                     chat_data.linked_channel_info = channel_info
 
+            # Add welcome message settings
+            if chat.welcome_message_enabled or chat.welcome_message_text:
+                welcome_message = WelcomeMessageSettings(
+                    enabled=chat.welcome_message_enabled,
+                    text=chat.welcome_message_text,
+                    media_type=chat.welcome_message_media_type,
+                    media_url=chat.welcome_message_media_url,
+                    lifetime_minutes=chat.welcome_message_lifetime_minutes,
+                    buttons=chat.welcome_message_buttons
+                )
+                chat_data.welcome_message = welcome_message
+
             result.append(chat_data)
 
         return result
@@ -264,3 +276,28 @@ class ChatService:
         await self.db.commit()
         await self.db.refresh(db_chat)
         return True
+
+    async def update_welcome_message(self, chat_id: int, welcome_message: WelcomeMessageUpdate) -> Optional[Chat]:
+        """Update welcome message settings for a chat"""
+        db_chat = await self.get_chat(chat_id)
+        if not db_chat:
+            return None
+
+        # Update welcome message fields
+        if welcome_message.enabled is not None:
+            db_chat.welcome_message_enabled = welcome_message.enabled
+        if welcome_message.text is not None:
+            db_chat.welcome_message_text = welcome_message.text
+        if welcome_message.media_type is not None:
+            db_chat.welcome_message_media_type = welcome_message.media_type
+        if welcome_message.media_url is not None:
+            db_chat.welcome_message_media_url = welcome_message.media_url
+        if welcome_message.lifetime_minutes is not None:
+            db_chat.welcome_message_lifetime_minutes = welcome_message.lifetime_minutes
+        if welcome_message.buttons is not None:
+            # Convert list of lists to JSON format
+            db_chat.welcome_message_buttons = welcome_message.buttons
+
+        await self.db.commit()
+        await self.db.refresh(db_chat)
+        return db_chat

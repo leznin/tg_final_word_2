@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 from typing import List
 
 from app.core.database import get_db
-from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelRequest, ChatWithLinkedChannelResponse, ChatSubscriptionInfo
+from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelRequest, ChatWithLinkedChannelResponse, ChatSubscriptionInfo, WelcomeMessageUpdate
 from app.services.chats import ChatService
 from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.models.chats import Chat
@@ -219,7 +219,13 @@ async def get_chat(
         "bot_permissions": chat.bot_permissions,
         "last_info_update": chat.last_info_update.isoformat() if chat.last_info_update else None,
         "linked_channel": linked_channel_data,
-        "active_subscription": subscription_data
+        "active_subscription": subscription_data,
+        "welcome_message_enabled": chat.welcome_message_enabled,
+        "welcome_message_text": chat.welcome_message_text,
+        "welcome_message_media_type": chat.welcome_message_media_type,
+        "welcome_message_media_url": chat.welcome_message_media_url,
+        "welcome_message_lifetime_minutes": chat.welcome_message_lifetime_minutes,
+        "welcome_message_buttons": chat.welcome_message_buttons
     }
 
     return {
@@ -487,3 +493,43 @@ async def get_available_channels_for_user(
         channels_data.append(channel_data)
 
     return channels_data
+
+
+@router.put("/{chat_id}/welcome-message")
+async def update_welcome_message(
+    chat_id: str,
+    welcome_message: WelcomeMessageUpdate,
+    db: AsyncSession = Depends(get_db),
+    user_info: dict = Depends(get_current_admin_user)
+):
+    """Update welcome message settings for a chat"""
+    chat_service = ChatService(db)
+    
+    # Get chat by ID (internal ID or Telegram chat ID)
+    # Telegram chat IDs can be negative (supergroups start with -100)
+    try:
+        chat_id_int = int(chat_id)
+        # Try to find by telegram_chat_id first (more common case)
+        chat = await chat_service.get_chat_by_telegram_id(chat_id_int)
+        # If not found and it's a positive number, try internal ID
+        if not chat and chat_id_int > 0:
+            chat = await chat_service.get_chat(chat_id_int)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid chat ID format")
+    
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    # Check permissions - admins see all, managers see assigned
+    if user_info.get("role") == UserRole.MANAGER.value:
+        access_service = ManagerChatAccessService(db)
+        chat_ids = await access_service.get_manager_chat_ids(user_info["user_id"])
+        if chat.id not in chat_ids:
+            raise HTTPException(status_code=403, detail="Access denied to this chat")
+    
+    # Update welcome message settings
+    updated_chat = await chat_service.update_welcome_message(chat.id, welcome_message)
+    if not updated_chat:
+        raise HTTPException(status_code=400, detail="Failed to update welcome message")
+    
+    return {"message": "Welcome message updated successfully", "chat_id": updated_chat.id}

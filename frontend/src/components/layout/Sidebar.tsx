@@ -8,10 +8,10 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home, roles: [UserRole.ADMIN] },
   { name: 'Чаты', href: '/chats', icon: MessageSquare, roles: [UserRole.ADMIN, UserRole.MANAGER] },
   { name: 'Пользователи и чаты', href: '/users-chats', icon: User, roles: [UserRole.ADMIN] },
+  { name: 'Рассылка', href: '/broadcast', icon: Send, roles: [UserRole.ADMIN] },
   { name: 'Модераторы', href: '/moderators', icon: Users, roles: [UserRole.ADMIN] },
   { name: 'Управление доступом', href: '/admin-users', icon: UserCog, roles: [UserRole.ADMIN] },
   { name: 'Проверка пользователей', href: '/user-verification', icon: UserCheck, roles: [UserRole.ADMIN] },
-  { name: 'Рассылка', href: '/broadcast', icon: Send, roles: [UserRole.ADMIN] },
   { name: 'AI Модерация', href: '/ai-moderation-payments', icon: Shield, roles: [UserRole.ADMIN] },
   { name: 'OpenRouter', href: '/openrouter', icon: Bot, roles: [UserRole.ADMIN] },
 ];

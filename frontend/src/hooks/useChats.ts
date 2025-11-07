@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../utils/api';
-import { Chat, ChatDetailResponse, LinkChannelResponse, ChatModerator, AddModeratorRequest, ModeratorResponse, ChatSubscription, ChatSubscriptionCreate, ChatMembersResponse } from '../types';
+import { Chat, ChatDetailResponse, LinkChannelResponse, ChatModerator, AddModeratorRequest, ModeratorResponse, ChatSubscription, ChatSubscriptionCreate, ChatMembersResponse, WelcomeMessageSettings } from '../types';
 
 export const useChats = () => {
   return useQuery({
@@ -178,6 +178,21 @@ export const useDeactivateChatSubscription = () => {
       queryClient.invalidateQueries({ queryKey: ['chats'] });
       queryClient.invalidateQueries({ queryKey: ['chat-detail'] });
       queryClient.invalidateQueries({ queryKey: ['chat-subscription-status'] });
+    },
+  });
+};
+
+export const useUpdateWelcomeMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ chatId, settings }: { chatId: string | number; settings: WelcomeMessageSettings }): Promise<void> => {
+      await api.put(`/chats/${chatId}/welcome-message`, settings);
+    },
+    onSuccess: () => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['chats'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-detail'] });
     },
   });
 };

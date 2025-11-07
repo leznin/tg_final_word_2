@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MessageSquare, MessageCircle } from 'lucide-react';
 import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { Select } from '../components/ui/Select';
 import { ChatPostsList } from '../components/chat/ChatPostsList';
 import { CreatePostModal } from '../components/modals/CreatePostModal';
+import { WelcomeMessageModal } from '../components/modals/WelcomeMessageModal';
 
 export const ChatDetail: React.FC = () => {
   const { chatId } = useParams<{ chatId: string }>();
@@ -22,7 +23,8 @@ export const ChatDetail: React.FC = () => {
   });
 
   // Chat info tabs state
-  const [activeTab, setActiveTab] = useState<'info' | 'ai' | 'moderators' | 'channel'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'ai' | 'moderators' | 'channel' | 'welcome'>('info');
+  const [showWelcomeMessageModal, setShowWelcomeMessageModal] = useState(false);
 
   // Chat members search and pagination state
   const [memberSearch, setMemberSearch] = useState('');
@@ -287,6 +289,17 @@ export const ChatDetail: React.FC = () => {
               >
                 <Radio className="h-4 w-4 mr-2" />
                 Канал
+              </button>
+              <button
+                onClick={() => setActiveTab('welcome')}
+                className={`flex-1 flex items-center justify-center px-4 py-3 text-sm font-medium transition-all ${
+                  activeTab === 'welcome'
+                    ? 'bg-white text-green-600 border-b-2 border-green-600'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Приветствие
               </button>
             </div>
 
@@ -612,6 +625,86 @@ export const ChatDetail: React.FC = () => {
                   )}
                 </div>
               )}
+
+              {/* Вкладка: Приветствие */}
+              {activeTab === 'welcome' && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-gray-900">Приветственное сообщение</h3>
+                    <button
+                      onClick={() => setShowWelcomeMessageModal(true)}
+                      className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-all flex items-center"
+                    >
+                      <Settings className="h-3 w-3 mr-1" />
+                      Настроить
+                    </button>
+                  </div>
+
+                  {chat.welcome_message_enabled ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-green-900">Статус</span>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                            <span className="text-xs text-green-800 font-medium">Включено</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {chat.welcome_message_text && (
+                        <div className="p-3 bg-white rounded-lg border border-gray-200">
+                          <div className="text-xs font-bold text-gray-900 mb-2">Текст сообщения:</div>
+                          <div className="text-xs text-gray-700 whitespace-pre-wrap bg-gray-50 p-2 rounded">
+                            {chat.welcome_message_text}
+                          </div>
+                        </div>
+                      )}
+
+                      {chat.welcome_message_media_type && (
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="text-xs font-bold text-blue-900 mb-1">Медиа:</div>
+                          <div className="text-xs text-blue-800">
+                            {chat.welcome_message_media_type === 'photo' ? '📷 Фото' : '🎥 Видео'}
+                          </div>
+                        </div>
+                      )}
+
+                      {chat.welcome_message_lifetime_minutes && (
+                        <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                          <div className="text-xs font-bold text-orange-900 mb-1">Время жизни:</div>
+                          <div className="text-xs text-orange-800">
+                            {chat.welcome_message_lifetime_minutes} минут
+                          </div>
+                        </div>
+                      )}
+
+                      {chat.welcome_message_buttons && JSON.parse(JSON.stringify(chat.welcome_message_buttons)).length > 0 && (
+                        <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                          <div className="text-xs font-bold text-purple-900 mb-1">Кнопки:</div>
+                          <div className="text-xs text-purple-800">
+                            {JSON.parse(JSON.stringify(chat.welcome_message_buttons)).length} ряд(а) кнопок
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                      <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-sm text-gray-500 mb-2">Приветственное сообщение отключено</p>
+                      <p className="text-xs text-gray-400 mb-4">
+                        Настройте сообщение, которое будет автоматически отправляться новым участникам
+                      </p>
+                      <button
+                        onClick={() => setShowWelcomeMessageModal(true)}
+                        className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-all"
+                      >
+                        Настроить приветствие
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -805,6 +898,33 @@ export const ChatDetail: React.FC = () => {
         <CreatePostModal
           chatId={chat.id}
           onClose={() => setShowCreatePostModal(false)}
+        />
+      )}
+
+      {/* Модальное окно настройки приветственного сообщения */}
+      {showWelcomeMessageModal && (
+        <WelcomeMessageModal
+          chat={{
+            id: chat.id,
+            telegram_chat_id: chat.chat_id,
+            chat_type: chat.chat_type as 'group' | 'supergroup' | 'channel',
+            title: chat.chat_title,
+            added_by_user_id: chat.admin_user_id,
+            is_active: chat.is_active,
+            added_at: chat.added_date,
+            created_at: chat.added_date,
+            updated_at: chat.added_date,
+            ai_content_check_enabled: chat.ai_content_check_enabled,
+            delete_messages_enabled: chat.delete_messages_enabled,
+            chat_moderators: [],
+            welcome_message_enabled: chat.welcome_message_enabled,
+            welcome_message_text: chat.welcome_message_text,
+            welcome_message_media_type: chat.welcome_message_media_type,
+            welcome_message_media_url: chat.welcome_message_media_url,
+            welcome_message_lifetime_minutes: chat.welcome_message_lifetime_minutes,
+            welcome_message_buttons: chat.welcome_message_buttons,
+          }}
+          onClose={() => setShowWelcomeMessageModal(false)}
         />
       )}
     </div>

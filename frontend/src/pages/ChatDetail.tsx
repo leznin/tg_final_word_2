@@ -7,6 +7,7 @@ import { Select } from '../components/ui/Select';
 import { ChatPostsList } from '../components/chat/ChatPostsList';
 import { CreatePostModal } from '../components/modals/CreatePostModal';
 import { WelcomeMessageModal } from '../components/modals/WelcomeMessageModal';
+import { TelegramMessagePreview } from '../components/chat/TelegramMessagePreview';
 
 export const ChatDetail: React.FC = () => {
   const { chatId } = useParams<{ chatId: string }>();
@@ -23,7 +24,7 @@ export const ChatDetail: React.FC = () => {
   });
 
   // Chat info tabs state
-  const [activeTab, setActiveTab] = useState<'info' | 'ai' | 'moderators' | 'channel' | 'welcome'>('welcome');
+  const [activeTab, setActiveTab] = useState<'info' | 'moderators' | 'welcome'>('welcome');
   const [showWelcomeMessageModal, setShowWelcomeMessageModal] = useState(false);
 
   // Chat members search and pagination state
@@ -264,17 +265,6 @@ export const ChatDetail: React.FC = () => {
                 Информация
               </button>
               <button
-                onClick={() => setActiveTab('ai')}
-                className={`flex-1 flex items-center justify-center px-4 py-3 text-sm font-medium transition-all ${
-                  activeTab === 'ai'
-                    ? 'bg-white text-green-600 border-b-2 border-green-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                AI & Подписка
-              </button>
-              <button
                 onClick={() => setActiveTab('moderators')}
                 className={`flex-1 flex items-center justify-center px-4 py-3 text-sm font-medium transition-all ${
                   activeTab === 'moderators'
@@ -290,17 +280,6 @@ export const ChatDetail: React.FC = () => {
                   </span>
                 )}
               </button>
-              <button
-                onClick={() => setActiveTab('channel')}
-                className={`flex-1 flex items-center justify-center px-4 py-3 text-sm font-medium transition-all ${
-                  activeTab === 'channel'
-                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Radio className="h-4 w-4 mr-2" />
-                Канал
-              </button>
             </div>
 
             {/* Содержимое вкладок */}
@@ -308,7 +287,7 @@ export const ChatDetail: React.FC = () => {
               {/* Вкладка: Приветствие */}
               {activeTab === 'welcome' && (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold text-gray-900">Приветственное сообщение</h3>
                     <button
                       onClick={() => setShowWelcomeMessageModal(true)}
@@ -320,52 +299,21 @@ export const ChatDetail: React.FC = () => {
                   </div>
 
                   {chat.welcome_message_enabled ? (
-                    <div className="space-y-1.5">
-                      <div className="p-2 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold text-green-900">Статус</span>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                            <span className="text-xs text-green-800 font-medium">Включено</span>
-                          </div>
-                        </div>
+                    <div className="space-y-4">
+                      {/* Status badge */}
+                      <div className="flex items-center justify-center space-x-2 p-2 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-xs text-green-800 font-medium">Приветствие активно</span>
                       </div>
 
-                      {chat.welcome_message_text && (
-                        <div className="p-2 bg-white rounded-lg border border-gray-200">
-                          <div className="text-xs font-bold text-gray-900 mb-1">Текст сообщения:</div>
-                          <div className="text-xs text-gray-700 whitespace-pre-wrap bg-gray-50 p-2 rounded">
-                            {chat.welcome_message_text}
-                          </div>
-                        </div>
-                      )}
-
-                      {chat.welcome_message_media_type && (
-                        <div className="p-2 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="text-xs font-bold text-blue-900 mb-0.5">Медиа:</div>
-                          <div className="text-xs text-blue-800">
-                            {chat.welcome_message_media_type === 'photo' ? '📷 Фото' : '🎥 Видео'}
-                          </div>
-                        </div>
-                      )}
-
-                      {chat.welcome_message_lifetime_minutes && (
-                        <div className="p-2 bg-orange-50 rounded-lg border border-orange-200">
-                          <div className="text-xs font-bold text-orange-900 mb-0.5">Время жизни:</div>
-                          <div className="text-xs text-orange-800">
-                            {chat.welcome_message_lifetime_minutes} минут
-                          </div>
-                        </div>
-                      )}
-
-                      {chat.welcome_message_buttons && JSON.parse(JSON.stringify(chat.welcome_message_buttons)).length > 0 && (
-                        <div className="p-2 bg-purple-50 rounded-lg border border-purple-200">
-                          <div className="text-xs font-bold text-purple-900 mb-0.5">Кнопки:</div>
-                          <div className="text-xs text-purple-800">
-                            {JSON.parse(JSON.stringify(chat.welcome_message_buttons)).length} ряд(а) кнопок
-                          </div>
-                        </div>
-                      )}
+                      {/* Telegram-style preview */}
+                      <TelegramMessagePreview
+                        text={chat.welcome_message_text}
+                        mediaType={chat.welcome_message_media_type as 'photo' | 'video' | null}
+                        mediaUrl={chat.welcome_message_media_url}
+                        buttons={chat.welcome_message_buttons ? JSON.parse(JSON.stringify(chat.welcome_message_buttons)) : []}
+                        lifetimeMinutes={chat.welcome_message_lifetime_minutes}
+                      />
                     </div>
                   ) : (
                     <div className="text-center py-8 bg-gray-50 rounded-lg">
@@ -387,13 +335,16 @@ export const ChatDetail: React.FC = () => {
 
               {/* Вкладка: Информация */}
               {activeTab === 'info' && (
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  {/* Описание */}
                   {chat.description && (
                     <div className="p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
                       <div className="text-xs font-bold text-blue-900 mb-1">Описание</div>
                       <p className="text-xs text-blue-900">{chat.description}</p>
                     </div>
                   )}
+
+                  {/* Ссылка и дата обновления */}
                   <div className="grid grid-cols-2 gap-2">
                     {chat.invite_link && (
                       <a
@@ -420,133 +371,227 @@ export const ChatDetail: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  {!chat.description && !chat.invite_link && !chat.last_info_update && (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg">
-                      <FileText className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-xs text-gray-500">Информация отсутствует</p>
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {/* Вкладка: AI & Подписка */}
-              {activeTab === 'ai' && (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* AI статус */}
-                    <div className="p-2 bg-gradient-to-br from-green-50 to-emerald-100 rounded-lg border border-green-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-green-900">AI проверка</span>
-                        <div className={`w-2.5 h-2.5 rounded-full ${
-                          (subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'bg-green-500 animate-pulse' :
-                          (!subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'bg-yellow-500' :
-                          'bg-gray-400'
-                        }`} />
+                  {/* AI проверка и Подписка */}
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 mb-2">AI & Подписка</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* AI статус */}
+                      <div className="p-2 bg-gradient-to-br from-green-50 to-emerald-100 rounded-lg border border-green-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-bold text-green-900">AI проверка</span>
+                          <div className={`w-2.5 h-2.5 rounded-full ${
+                            (subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'bg-green-500 animate-pulse' :
+                            (!subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? 'bg-yellow-500' :
+                            'bg-gray-400'
+                          }`} />
+                        </div>
+                        <p className="text-xs text-green-800 leading-relaxed">
+                          {(subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? '✓ Активна и работает' :
+                           (!subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? '⚠ Требуется оплата' :
+                           '○ Отключена'}
+                        </p>
                       </div>
-                      <p className="text-xs text-green-800 leading-relaxed">
-                        {(subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? '✓ Активна и работает' :
-                         (!subscriptionStatus?.has_active_subscription && chat.ai_content_check_enabled) ? '⚠ Требуется оплата' :
-                         '○ Отключена'}
-                      </p>
-                    </div>
 
-                    {/* Подписка */}
-                    <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg border border-blue-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-blue-900">Подписка</span>
-                        {!chat.active_subscription && (
-                          <button
-                            onClick={() => setShowSubscriptionForm(!showSubscriptionForm)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </button>
+                      {/* Подписка */}
+                      <div className="p-2 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-bold text-blue-900">Подписка</span>
+                          {!chat.active_subscription && (
+                            <button
+                              onClick={() => setShowSubscriptionForm(!showSubscriptionForm)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        {chat.active_subscription ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-blue-800">💎 {chat.active_subscription.price_stars} ⭐</span>
+                              <span className="text-blue-700 font-medium">
+                                {chat.active_subscription.subscription_type === 'month' ? 'Месяц' : 'Год'}
+                              </span>
+                            </div>
+                            <div className="text-xs text-blue-800">
+                              до {new Date(chat.active_subscription.end_date).toLocaleDateString('ru-RU')}
+                            </div>
+                            <button
+                              onClick={() => handleDeactivateSubscription(chat.active_subscription!.id)}
+                              className="text-[10px] text-red-600 hover:text-red-800 font-medium"
+                            >
+                              Деактивировать
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-blue-800">○ Не активна</p>
                         )}
                       </div>
-                      {chat.active_subscription ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-blue-800">💎 {chat.active_subscription.price_stars} ⭐</span>
-                            <span className="text-blue-700 font-medium">
-                              {chat.active_subscription.subscription_type === 'month' ? 'Месяц' : 'Год'}
-                            </span>
-                          </div>
-                          <div className="text-xs text-blue-800">
-                            до {new Date(chat.active_subscription.end_date).toLocaleDateString('ru-RU')}
-                          </div>
-                          <button
-                            onClick={() => handleDeactivateSubscription(chat.active_subscription!.id)}
-                            className="text-[10px] text-red-600 hover:text-red-800 font-medium"
-                          >
-                            Деактивировать
-                          </button>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-blue-800">○ Не активна</p>
-                      )}
                     </div>
-                  </div>
 
-                  {/* Форма создания подписки */}
-                  {showSubscriptionForm && (
-                    <div className="pt-2 border-t border-gray-200">
-                      <h5 className="text-xs font-bold text-gray-900 mb-1.5">Новая подписка</h5>
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        <Select
-                          label="Тип"
-                          value={subscriptionForm.subscription_type}
-                          onChange={(e) => setSubscriptionForm(prev => ({
-                            ...prev,
-                            subscription_type: e.target.value as 'month' | 'year'
-                          }))}
-                          icon={<Calendar className="w-3.5 h-3.5" />}
-                        >
-                          <option value="month">Месяц</option>
-                          <option value="year">Год</option>
-                        </Select>
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-700 mb-1">Стоимость ⭐</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={subscriptionForm.price_stars}
+                    {/* Форма создания подписки */}
+                    {showSubscriptionForm && (
+                      <div className="pt-2 border-t border-gray-200 mt-2">
+                        <h5 className="text-xs font-bold text-gray-900 mb-1.5">Новая подписка</h5>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <Select
+                            label="Тип"
+                            value={subscriptionForm.subscription_type}
                             onChange={(e) => setSubscriptionForm(prev => ({
                               ...prev,
-                              price_stars: parseInt(e.target.value) || 1
+                              subscription_type: e.target.value as 'month' | 'year'
+                            }))}
+                            icon={<Calendar className="w-3.5 h-3.5" />}
+                          >
+                            <option value="month">Месяц</option>
+                            <option value="year">Год</option>
+                          </Select>
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-700 mb-1">Стоимость ⭐</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={subscriptionForm.price_stars}
+                              onChange={(e) => setSubscriptionForm(prev => ({
+                                ...prev,
+                                price_stars: parseInt(e.target.value) || 1
+                              }))}
+                              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                        <div className="mb-2">
+                          <label className="block text-[10px] font-medium text-gray-700 mb-1">Окончание</label>
+                          <input
+                            type="datetime-local"
+                            value={subscriptionForm.end_date}
+                            onChange={(e) => setSubscriptionForm(prev => ({
+                              ...prev,
+                              end_date: e.target.value
                             }))}
                             className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setShowSubscriptionForm(false)}
+                            className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            onClick={handleCreateSubscription}
+                            disabled={createSubscriptionMutation.isPending || !subscriptionForm.end_date}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {createSubscriptionMutation.isPending ? 'Создание...' : 'Создать'}
+                          </button>
+                        </div>
                       </div>
-                      <div className="mb-2">
-                        <label className="block text-[10px] font-medium text-gray-700 mb-1">Окончание</label>
-                        <input
-                          type="datetime-local"
-                          value={subscriptionForm.end_date}
-                          onChange={(e) => setSubscriptionForm(prev => ({
-                            ...prev,
-                            end_date: e.target.value
-                          }))}
-                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
+                    )}
+                  </div>
+
+                  {/* Привязанный канал */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-bold text-gray-900">Привязанный канал</h4>
+                      {!chat.linked_channel && (
                         <button
-                          onClick={() => setShowSubscriptionForm(false)}
-                          className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
+                          onClick={() => setShowChannelSelector(!showChannelSelector)}
+                          className="px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-all flex items-center"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Привязать
+                        </button>
+                      )}
+                    </div>
+
+                    {chat.linked_channel ? (
+                      <div className="relative group">
+                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200 hover:shadow-md transition-all">
+                          <div className="flex items-start space-x-2">
+                            <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                              <Radio className="w-3.5 h-3.5 text-blue-700" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-medium text-blue-900 truncate">
+                                {chat.linked_channel.title || `Канал ${chat.linked_channel.telegram_chat_id}`}
+                              </h4>
+                              <div className="text-xs text-blue-700 font-mono mt-0.5">
+                                ID: {chat.linked_channel.telegram_chat_id}
+                              </div>
+                              {chat.linked_channel.username && (
+                                <a
+                                  href={`https://t.me/${chat.linked_channel.username}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:underline inline-block mt-1"
+                                >
+                                  @{chat.linked_channel.username}
+                                </a>
+                              )}
+                            </div>
+                            <button
+                              onClick={handleUnlinkChannel}
+                              disabled={unlinkChannelMutation.isPending}
+                              className="flex-shrink-0 text-red-500 hover:text-red-700 disabled:opacity-50 p-1 rounded hover:bg-red-50 transition-all"
+                              title="Отвязать канал"
+                            >
+                              <Unlink className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 bg-gray-50 rounded-lg">
+                        <Radio className="h-6 w-6 text-gray-300 mx-auto mb-1" />
+                        <p className="text-xs text-gray-500">Канал не привязан</p>
+                      </div>
+                    )}
+
+                    {/* Селектор каналов */}
+                    {showChannelSelector && availableChannels && availableChannels.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <h5 className="text-xs font-bold text-gray-900 mb-1.5">Выберите канал:</h5>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                          {availableChannels.map((channel) => (
+                            <div
+                              key={channel.id}
+                              className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-2 border border-green-200 hover:shadow-md cursor-pointer transition-all"
+                              onClick={() => handleLinkChannel(channel.id)}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <Radio className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-medium text-green-900 truncate">
+                                    {channel.title || `Канал ${channel.telegram_chat_id}`}
+                                  </div>
+                                  <div className="text-[10px] text-green-700 font-mono">
+                                    ID: {channel.telegram_chat_id}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => setShowChannelSelector(false)}
+                          className="mt-1.5 text-xs text-gray-600 hover:text-gray-800"
                         >
                           Отмена
                         </button>
-                        <button
-                          onClick={handleCreateSubscription}
-                          disabled={createSubscriptionMutation.isPending || !subscriptionForm.end_date}
-                          className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {createSubscriptionMutation.isPending ? 'Создание...' : 'Создать'}
-                        </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {showChannelSelector && (!availableChannels || availableChannels.length === 0) && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className="text-xs text-gray-500 text-center py-3">
+                          Нет доступных каналов
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -596,111 +641,6 @@ export const ChatDetail: React.FC = () => {
                     <div className="text-center py-8 bg-gray-50 rounded-lg">
                       <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                       <p className="text-xs text-gray-500">Модераторы не назначены</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Вкладка: Канал */}
-              {activeTab === 'channel' && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center">
-                      <h3 className="text-sm font-bold text-gray-900">Привязанный канал</h3>
-                    </div>
-                    {!chat.linked_channel && (
-                      <button
-                        onClick={() => setShowChannelSelector(!showChannelSelector)}
-                        className="px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-all flex items-center"
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Привязать
-                      </button>
-                    )}
-                  </div>
-
-                  {chat.linked_channel ? (
-                    <div className="relative group">
-                      <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200 hover:shadow-md transition-all">
-                        <div className="flex items-start space-x-2">
-                          <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Radio className="w-3.5 h-3.5 text-blue-700" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-medium text-blue-900 truncate">
-                              {chat.linked_channel.title || `Канал ${chat.linked_channel.telegram_chat_id}`}
-                            </h4>
-                            <div className="text-xs text-blue-700 font-mono mt-0.5">
-                              ID: {chat.linked_channel.telegram_chat_id}
-                            </div>
-                            {chat.linked_channel.username && (
-                              <a
-                                href={`https://t.me/${chat.linked_channel.username}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-blue-600 hover:underline inline-block mt-1"
-                              >
-                                @{chat.linked_channel.username}
-                              </a>
-                            )}
-                          </div>
-                          <button
-                            onClick={handleUnlinkChannel}
-                            disabled={unlinkChannelMutation.isPending}
-                            className="flex-shrink-0 text-red-500 hover:text-red-700 disabled:opacity-50 p-1 rounded hover:bg-red-50 transition-all"
-                            title="Отвязать канал"
-                          >
-                            <Unlink className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 bg-gray-50 rounded-lg">
-                      <Radio className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-xs text-gray-500">Канал не привязан</p>
-                    </div>
-                  )}
-
-                  {/* Селектор каналов */}
-                  {showChannelSelector && availableChannels && availableChannels.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <h5 className="text-xs font-bold text-gray-900 mb-1.5">Выберите канал:</h5>
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                        {availableChannels.map((channel) => (
-                          <div
-                            key={channel.id}
-                            className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-2 border border-green-200 hover:shadow-md cursor-pointer transition-all"
-                            onClick={() => handleLinkChannel(channel.id)}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <Radio className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-medium text-green-900 truncate">
-                                  {channel.title || `Канал ${channel.telegram_chat_id}`}
-                                </div>
-                                <div className="text-[10px] text-green-700 font-mono">
-                                  ID: {channel.telegram_chat_id}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        onClick={() => setShowChannelSelector(false)}
-                        className="mt-1.5 text-xs text-gray-600 hover:text-gray-800"
-                      >
-                        Отмена
-                      </button>
-                    </div>
-                  )}
-
-                  {showChannelSelector && (!availableChannels || availableChannels.length === 0) && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-500 text-center py-3">
-                        Нет доступных каналов
-                      </p>
                     </div>
                   )}
                 </div>

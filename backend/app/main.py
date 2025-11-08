@@ -293,10 +293,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 from fastapi.responses import FileResponse
 import os
 
-# Mount frontend assets
+# Mount frontend assets and html files
 frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
 if os.path.exists(frontend_dist):
+    # Mount assets folder
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="frontend-assets")
+    # Mount dist for direct access to .html files
+    app.mount("/dist", StaticFiles(directory=frontend_dist, html=True), name="frontend-dist")
 
 # Include routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -305,6 +308,18 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/mini-app")
 async def mini_app():
     """Serve mini app HTML file"""
+    frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+    mini_app_path = os.path.join(frontend_dist, "mini-app.html")
+
+    if os.path.exists(mini_app_path):
+        return FileResponse(mini_app_path, media_type="text/html")
+    else:
+        return {"error": "Mini app not found"}
+
+
+@app.get("/mini-app.html")
+async def mini_app_html():
+    """Serve mini app HTML file directly"""
     frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
     mini_app_path = os.path.join(frontend_dist, "mini-app.html")
 
@@ -369,3 +384,28 @@ async def telegram_webhook_legacy(request: Request):
     """Handle Telegram webhook (legacy endpoint for backward compatibility)"""
     # Forward to the main webhook handler
     return await telegram_webhook(request)
+
+
+# Admin panel routes - serve index.html for admin panel routes
+@app.get("/login")
+async def serve_admin_login():
+    """Serve admin panel for /login"""
+    frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+    index_path = os.path.join(frontend_dist, "index.html")
+    
+    if os.path.exists(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    else:
+        return {"error": "Admin panel not found"}
+
+
+@app.get("/dashboard{full_path:path}")
+async def serve_admin_dashboard(full_path: str):
+    """Serve admin panel for /dashboard/*"""
+    frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+    index_path = os.path.join(frontend_dist, "index.html")
+    
+    if os.path.exists(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    else:
+        return {"error": "Admin panel not found"}

@@ -38,7 +38,7 @@ export const useUserSearch = () => {
         return response.data
       },
       enabled: !!telegramUserId,
-      refetchInterval: 30000, // Refetch every 30 seconds
+      refetchInterval: 10000, // Refetch every 10 seconds
     })
   }
 

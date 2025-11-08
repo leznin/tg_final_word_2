@@ -71,4 +71,25 @@ export interface SearchLimitResponse {
   max_searches_per_day: number
   remaining_searches: number
   reset_time: string  // ISO date string
+  boost_searches_available: number  // Additional searches from purchases
+  can_purchase_boost: boolean  // Whether user can buy more boosts today
+}
+
+// Search Boost types
+export interface SearchBoostPriceResponse {
+  id: number
+  boost_amount: number
+  price_stars: number
+  currency: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface SearchBoostAvailabilityResponse {
+  can_purchase: boolean
+  purchases_today: number
+  max_purchases_per_day: number
+  remaining_purchases: number
+  reason?: string | null
 }

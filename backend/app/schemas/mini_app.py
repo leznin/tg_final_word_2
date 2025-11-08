@@ -68,6 +68,8 @@ class SearchLimitResponse(BaseModel):
     max_searches_per_day: int
     remaining_searches: int
     reset_time: datetime  # When the limit will reset
+    boost_searches_available: int = 0  # Additional searches available from purchases
+    can_purchase_boost: bool = True  # Whether user can buy more boosts today
 
 
 class SearchStatsEntry(BaseModel):
@@ -88,3 +90,47 @@ class SearchStatsResponse(BaseModel):
     total_searches_all_time: int
     total_searches_today: int
     stats: List[SearchStatsEntry]
+
+
+# Search Boost (Additional Searches) Schemas
+
+class SearchBoostPriceResponse(BaseModel):
+    """Schema for search boost price information"""
+    id: int
+    boost_amount: int  # Number of additional searches (default: 10)
+    price_stars: int  # Price in Telegram Stars
+    currency: str = 'XTR'
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class SearchBoostPriceUpdate(BaseModel):
+    """Schema for updating search boost price"""
+    price_stars: int
+
+
+class SearchBoostAvailabilityResponse(BaseModel):
+    """Schema for checking if user can purchase more boosts"""
+    can_purchase: bool
+    purchases_today: int
+    max_purchases_per_day: int = 2
+    remaining_purchases: int
+    reason: Optional[str] = None
+
+
+class SearchBoostPurchaseRequest(BaseModel):
+    """Schema for initiating search boost purchase"""
+    telegram_user_id: int
+
+
+class SearchBoostPurchaseResponse(BaseModel):
+    """Schema for search boost purchase response"""
+    id: int
+    user_id: int
+    telegram_user_id: int
+    boost_amount: int
+    price_stars: int
+    purchased_at: datetime
+    used_searches: int
+    is_active: bool

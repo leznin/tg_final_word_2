@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.subscription_prices import SubscriptionPricesService
 from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.services.chats import ChatService
+from app.services.search_boost import SearchBoostService
+from app.models.users import User
 from app.telegram.keyboards.payment_keyboard import payment_keyboard, payment_options_keyboard, cancel_payment_keyboard
 from app.telegram.utils.constants import PaymentMessages
 
@@ -126,12 +128,49 @@ async def pre_checkout_handler(
 ) -> None:
     """
     Handle pre-checkout query (payment verification)
+    Supports both subscription payments and search boost purchases
     """
     print(f"💳 PRE-CHECKOUT QUERY RECEIVED: {pre_checkout_query.invoice_payload}")
     print(f"💳 PRE-CHECKOUT QUERY DATA: user_id={pre_checkout_query.from_user.id}, total_amount={pre_checkout_query.total_amount}")
     try:
-        # Parse payload: subscription_type:chat_id:user_id
+        # Parse payload
         payload_parts = pre_checkout_query.invoice_payload.split(":")
+        
+        # Check if this is a search boost payment (format: boost:user_id)
+        if payload_parts[0] == "boost":
+            if len(payload_parts) != 2:
+                await pre_checkout_query.answer(ok=False, error_message=PaymentMessages.INVALID_PAYMENT_DATA)
+                return
+            
+            user_id = int(payload_parts[1])
+            
+            # Check if user exists
+            from sqlalchemy import select
+            user_query = await db.execute(
+                select(User).where(User.telegram_id == user_id)
+            )
+            user = user_query.scalar_one_or_none()
+            
+            if not user:
+                await pre_checkout_query.answer(ok=False, error_message="User not found")
+                return
+            
+            # Check if user can purchase more boosts today (max 2)
+            boost_service = SearchBoostService(db)
+            availability = await boost_service.check_purchase_availability(user.id)
+            
+            if not availability.can_purchase:
+                await pre_checkout_query.answer(
+                    ok=False,
+                    error_message=f"Maximum {boost_service.MAX_PURCHASES_PER_DAY} boost purchases per day reached"
+                )
+                return
+            
+            # All checks passed for boost purchase
+            await pre_checkout_query.answer(ok=True)
+            return
+        
+        # Original subscription logic (format: subscription_type:chat_id:user_id)
         if len(payload_parts) != 3:
             await pre_checkout_query.answer(ok=False, error_message=PaymentMessages.INVALID_PAYMENT_DATA)
             return
@@ -178,12 +217,53 @@ async def success_payment_handler(
 ) -> None:
     """
     Handle successful payment
+    Supports both subscription payments and search boost purchases
     """
     print(f"🎉 SUCCESSFUL PAYMENT RECEIVED: {message.successful_payment}")
     print(f"🎉 PAYMENT DATA: user_id={message.from_user.id}, chat_id={message.chat.id}, total_amount={message.successful_payment.total_amount}")
     try:
-        # Parse payload: subscription_type:chat_id:user_id
+        # Parse payload
         payload_parts = message.successful_payment.invoice_payload.split(":")
+        
+        # Check if this is a search boost payment (format: boost:user_id)
+        if payload_parts[0] == "boost":
+            if len(payload_parts) != 2:
+                await message.reply("❌ Ошибка обработки платежа: неверные данные")
+                return
+            
+            telegram_user_id = int(payload_parts[1])
+            
+            # Get user from database
+            from sqlalchemy import select
+            user_query = await db.execute(
+                select(User).where(User.telegram_id == telegram_user_id)
+            )
+            user = user_query.scalar_one_or_none()
+            
+            if not user:
+                await message.reply("❌ Пользователь не найден")
+                return
+            
+            # Create boost purchase
+            boost_service = SearchBoostService(db)
+            purchase = await boost_service.create_purchase(
+                user_id=user.id,
+                telegram_user_id=telegram_user_id,
+                price_stars=message.successful_payment.total_amount,
+                telegram_payment_charge_id=message.successful_payment.telegram_payment_charge_id
+            )
+            
+            confirmation_message = (
+                f"✅ Оплата успешна!\n\n"
+                f"🔍 Вы получили +{purchase.boost_amount} дополнительных поисков\n"
+                f"⭐️ Оплачено: {message.successful_payment.total_amount} звёзд\n\n"
+                f"Теперь вы можете продолжить поиск пользователей!"
+            )
+            
+            await message.reply(confirmation_message)
+            return
+        
+        # Original subscription logic (format: subscription_type:chat_id:user_id)
         if len(payload_parts) != 3:
             await message.reply("❌ Ошибка обработки платежа: неверные данные")
             return

@@ -6,10 +6,13 @@ import { Loading } from '../components/ui/Loading'
 import { UserAvatar } from '../components/UserAvatar'
 import { createThemeStyles } from '../utils/themeUtils'
 import { saveSession, getSession, hasValidSession } from '../utils/sessionStorage'
+import { api } from '../utils/api'
+import { useQueryClient } from '@tanstack/react-query'
 
 const MiniAppUserSearch: React.FC = () => {
-  const { isReady, user, initData, error: telegramError, hapticFeedback, theme } = useTelegramWebApp()
+  const { isReady, user, initData, error: telegramError, hapticFeedback, theme, openInvoice } = useTelegramWebApp()
   const { verifyUserAsync, searchUsersAsync, isSearching, useSearchLimits } = useUserSearch()
+  const queryClient = useQueryClient()
 
   // Get search limits
   const { data: searchLimits } = useSearchLimits(user?.id)
@@ -22,8 +25,47 @@ const MiniAppUserSearch: React.FC = () => {
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([])
   const [searchError, setSearchError] = useState<string | null>(null)
   const [isPasting, setIsPasting] = useState(false)
+  const [showBoostModal, setShowBoostModal] = useState(false)
+  const [boostPrice, setBoostPrice] = useState<number | null>(null)
+  const [boostAmount, setBoostAmount] = useState<number>(10)
+  const [purchasesToday, setPurchasesToday] = useState<number>(0)
+  const [maxPurchasesPerDay, setMaxPurchasesPerDay] = useState<number>(2)
 
   const inputRef = React.useRef<HTMLInputElement>(null)
+
+  // Fetch boost price on mount
+  useEffect(() => {
+    const fetchBoostPrice = async () => {
+      try {
+        const response = await api.get('/mini-app/search-boost/price')
+        setBoostPrice(response.data.price_stars)
+        setBoostAmount(response.data.boost_amount)
+      } catch (error) {
+        console.error('Failed to fetch boost price:', error)
+      }
+    }
+    
+    fetchBoostPrice()
+  }, [])
+
+  // Fetch boost availability when user changes or modal opens
+  useEffect(() => {
+    const fetchBoostAvailability = async () => {
+      if (!user?.id) return
+      
+      try {
+        const response = await api.get(`/mini-app/search-boost/availability/${user.id}`)
+        setPurchasesToday(response.data.purchases_today)
+        setMaxPurchasesPerDay(response.data.max_purchases_per_day)
+      } catch (error) {
+        console.error('Failed to fetch boost availability:', error)
+      }
+    }
+    
+    if (user?.id) {
+      fetchBoostAvailability()
+    }
+  }, [user?.id, showBoostModal])
 
   // Check for existing session on mount
   useEffect(() => {
@@ -106,9 +148,15 @@ const MiniAppUserSearch: React.FC = () => {
     }
 
     // Check if limit reached
-    if (searchLimits && searchLimits.remaining_searches <= 0) {
-      setSearchError(`Daily search limit reached (${searchLimits.max_searches_per_day} per day). Try again later.`)
-      hapticFeedback.notification('error')
+    if (searchLimits && searchLimits.remaining_searches <= 0 && searchLimits.boost_searches_available <= 0) {
+      // Show purchase modal if user can still buy boosts
+      if (searchLimits.can_purchase_boost) {
+        setShowBoostModal(true)
+        hapticFeedback.notification('warning')
+      } else {
+        setSearchError(`Daily search limit reached (${searchLimits.max_searches_per_day} per day). Try again later.`)
+        hapticFeedback.notification('error')
+      }
       return
     }
 
@@ -158,6 +206,50 @@ const MiniAppUserSearch: React.FC = () => {
       hapticFeedback.notification('error')
     } finally {
       setIsPasting(false)
+    }
+  }
+
+  const handlePurchaseBoost = async () => {
+    if (!user?.id) {
+      hapticFeedback.notification('error')
+      return
+    }
+
+    try {
+      hapticFeedback.selection()
+      
+      // Get invoice link from backend
+      const response = await api.post(`/mini-app/search-boost/create-invoice/${user.id}`)
+      const { invoice_link } = response.data
+      
+      // Open invoice link in Telegram using WebApp API
+      if (invoice_link && openInvoice) {
+        openInvoice(invoice_link, async (status) => {
+          console.log('Invoice status:', status)
+          if (status === 'paid') {
+            hapticFeedback.notification('success')
+            // Wait a bit for backend to process the payment
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            // Refresh search limits after successful payment
+            queryClient.invalidateQueries({ queryKey: ['searchLimits', user.id] })
+            // Update purchases today count
+            setPurchasesToday(prev => prev + 1)
+            // Show success message
+            setSearchError(null)
+          } else if (status === 'cancelled') {
+            hapticFeedback.notification('warning')
+          } else if (status === 'failed') {
+            setSearchError('Payment failed. Please try again.')
+            hapticFeedback.notification('error')
+          }
+        })
+        setShowBoostModal(false)
+      }
+    } catch (error: any) {
+      console.error('Purchase boost error:', error)
+      const errorMessage = error?.response?.data?.detail || 'Failed to create invoice. Please try again.'
+      setSearchError(errorMessage)
+      hapticFeedback.notification('error')
     }
   }
 
@@ -296,14 +388,17 @@ const MiniAppUserSearch: React.FC = () => {
               <div className="flex flex-col items-end">
                 <div 
                   className={`px-3 py-1.5 rounded-full text-sm font-semibold ${
-                    searchLimits.remaining_searches === 0 
+                    searchLimits.remaining_searches === 0 && searchLimits.boost_searches_available === 0
                       ? 'bg-red-500/20 text-red-400' 
-                      : searchLimits.remaining_searches <= 3
+                      : searchLimits.remaining_searches + searchLimits.boost_searches_available <= 3
                         ? 'bg-yellow-500/20 text-yellow-400'
                         : 'bg-green-500/20 text-green-400'
                   }`}
                 >
-                  {searchLimits.remaining_searches}/{searchLimits.max_searches_per_day}
+                  {searchLimits.remaining_searches + searchLimits.boost_searches_available}/{searchLimits.max_searches_per_day}
+                  {searchLimits.boost_searches_available > 0 && (
+                    <span className="ml-1 text-yellow-400">+{searchLimits.boost_searches_available}</span>
+                  )}
                 </div>
                 <span className="text-xs mt-1" style={themeStyles.textHint}>
                   searches left
@@ -536,6 +631,87 @@ const MiniAppUserSearch: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Boost Purchase Modal */}
+      {showBoostModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={() => setShowBoostModal(false)}
+        >
+          <div 
+            className="rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all"
+            style={themeStyles.card}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">🔍⭐</div>
+              <h2 className="text-2xl font-bold mb-2" style={themeStyles.textPrimary}>
+                Get More Searches!
+              </h2>
+              <p className="text-sm" style={themeStyles.textSecondary}>
+                You've reached your daily search limit
+              </p>
+            </div>
+
+            <div className="rounded-xl p-4 mb-6" style={{ backgroundColor: theme.colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <span style={themeStyles.textSecondary}>Additional Searches:</span>
+                <span className="text-xl font-bold" style={themeStyles.textAccent}>+{boostAmount}</span>
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <span style={themeStyles.textSecondary}>Price:</span>
+                <span className="text-xl font-bold text-yellow-500">{boostPrice || '...'} ⭐</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span style={themeStyles.textHint}>Purchases today:</span>
+                <span style={themeStyles.textHint}>
+                  {purchasesToday}/{maxPurchasesPerDay}
+                </span>
+              </div>
+            </div>
+
+            <div className="mb-4 p-3 rounded-lg" style={{ backgroundColor: theme.colorScheme === 'dark' ? 'rgba(255, 200, 0, 0.1)' : 'rgba(255, 200, 0, 0.1)' }}>
+              <p className="text-xs" style={themeStyles.textSecondary}>
+                ℹ️ You can purchase up to {maxPurchasesPerDay} boosts per day (24 hours)
+              </p>
+            </div>
+
+            {purchasesToday >= maxPurchasesPerDay && (
+              <div className="mb-4 p-3 rounded-lg" style={{ backgroundColor: theme.colorScheme === 'dark' ? 'rgba(255, 0, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)' }}>
+                <p className="text-xs text-red-500 font-semibold">
+                  ⚠️ You've reached the maximum number of purchases for today
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBoostModal(false)}
+                className="flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
+                style={{
+                  backgroundColor: theme.colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  ...themeStyles.textPrimary
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePurchaseBoost}
+                disabled={purchasesToday >= maxPurchasesPerDay}
+                className="flex-1 py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                style={{
+                  background: purchasesToday >= maxPurchasesPerDay 
+                    ? 'linear-gradient(135deg, #999 0%, #666 100%)'
+                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                }}
+              >
+                Buy Now ⭐
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

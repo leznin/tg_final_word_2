@@ -26,6 +26,7 @@ from app.schemas.mini_app import (
     SearchLimitResponse
 )
 from app.core.config import settings
+from app.services.search_boost import SearchBoostService
 
 
 class MiniAppService:
@@ -41,6 +42,7 @@ class MiniAppService:
         """
         Check if user has reached daily search limit.
         Returns (can_search: bool, remaining_searches: int)
+        Now considers purchased boost searches.
         """
         # Calculate 24 hours ago
         twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
@@ -55,13 +57,40 @@ class MiniAppService:
         result = await self.db.execute(count_query)
         searches_count = result.scalar() or 0
         
-        remaining = self.MAX_SEARCHES_PER_DAY - searches_count
-        can_search = searches_count < self.MAX_SEARCHES_PER_DAY
+        # Calculate remaining from daily limit
+        remaining_daily = max(0, self.MAX_SEARCHES_PER_DAY - searches_count)
         
-        return can_search, max(0, remaining)
+        # Check boost searches
+        boost_service = SearchBoostService(self.db)
+        boost_searches = await boost_service.get_available_boost_searches(user_id)
+        
+        # Can search if either daily limit not reached OR has boost searches
+        can_search = remaining_daily > 0 or boost_searches > 0
+        total_remaining = remaining_daily + boost_searches
+        
+        return can_search, total_remaining
 
     async def _log_search(self, user_id: int, telegram_user_id: int, query: str, results_count: int):
-        """Log a search operation"""
+        """
+        Log a search operation and use boost if daily limit reached.
+        """
+        # Check if we need to use a boost search
+        twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+        count_query = select(func.count()).select_from(UserSearchLog).where(
+            and_(
+                UserSearchLog.user_id == user_id,
+                UserSearchLog.searched_at >= twenty_four_hours_ago
+            )
+        )
+        result = await self.db.execute(count_query)
+        searches_count = result.scalar() or 0
+        
+        # If daily limit reached, use boost search
+        if searches_count >= self.MAX_SEARCHES_PER_DAY:
+            boost_service = SearchBoostService(self.db)
+            await boost_service.use_boost_search(user_id)
+        
+        # Log the search
         search_log = UserSearchLog(
             user_id=user_id,
             telegram_user_id=telegram_user_id,
@@ -72,7 +101,7 @@ class MiniAppService:
         await self.db.commit()
 
     async def get_search_limits(self, user_id: int) -> SearchLimitResponse:
-        """Get current search limits for a user"""
+        """Get current search limits for a user including boost searches"""
         twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
         
         # Count searches in last 24 hours
@@ -99,13 +128,20 @@ class MiniAppService:
         # Reset time is 24 hours from the oldest search, or now if no searches
         reset_time = (oldest_search + timedelta(hours=24)) if oldest_search else datetime.utcnow()
         
-        remaining = max(0, self.MAX_SEARCHES_PER_DAY - searches_count)
+        remaining_daily = max(0, self.MAX_SEARCHES_PER_DAY - searches_count)
+        
+        # Get boost searches and purchase availability
+        boost_service = SearchBoostService(self.db)
+        boost_searches = await boost_service.get_available_boost_searches(user_id)
+        availability = await boost_service.check_purchase_availability(user_id)
         
         return SearchLimitResponse(
             total_searches_today=searches_count,
             max_searches_per_day=self.MAX_SEARCHES_PER_DAY,
-            remaining_searches=remaining,
-            reset_time=reset_time
+            remaining_searches=remaining_daily,
+            reset_time=reset_time,
+            boost_searches_available=boost_searches,
+            can_purchase_boost=availability.can_purchase
         )
 
     def _generate_session_token(self, user_id: int) -> str:

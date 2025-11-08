@@ -28,9 +28,8 @@ def get_chats_keyboard(chats: List[Chat]) -> InlineKeyboardMarkup:
         if chat.username:
             button_text += f" (@{chat.username})"
 
-        # Add linked channel indicator
-        if chat.chat_type != 'channel' and hasattr(chat, 'linked_channel') and chat.linked_channel:
-            button_text += " 🔗"
+        # Note: linked channel indicator removed to avoid lazy loading issues
+        # The linked channel info will be shown after selection
 
         # Create callback data with chat ID
         callback_data = f"select_chat:{chat.id}"

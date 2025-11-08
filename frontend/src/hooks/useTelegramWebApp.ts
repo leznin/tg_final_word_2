@@ -191,6 +191,12 @@ export const useTelegramWebApp = () => {
     }
   }
 
+  const openInvoice = (url: string, callback?: (status: string) => void) => {
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.openInvoice(url, callback)
+    }
+  }
+
   return {
     isReady,
     user,
@@ -203,6 +209,7 @@ export const useTelegramWebApp = () => {
     showBackButton,
     hideBackButton,
     hapticFeedback,
+    openInvoice,
     webApp: window.Telegram?.WebApp
   }
 }

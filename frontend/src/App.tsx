@@ -93,7 +93,7 @@ function App() {
               </RoleProtectedRoute>
             } />
             <Route path="search-stats" element={
-              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                 <SearchStats />
               </RoleProtectedRoute>
             } />

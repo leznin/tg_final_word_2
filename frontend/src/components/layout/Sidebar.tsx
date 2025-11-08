@@ -12,7 +12,7 @@ const navigation = [
   { name: 'Модераторы', href: '/moderators', icon: Users, roles: [UserRole.ADMIN] },
   { name: 'Управление доступом', href: '/admin-users', icon: UserCog, roles: [UserRole.ADMIN] },
   { name: 'Проверка пользователей', href: '/user-verification', icon: UserCheck, roles: [UserRole.ADMIN] },
-  { name: 'Статистика поиска', href: '/search-stats', icon: Search, roles: [UserRole.ADMIN, UserRole.MANAGER] },
+  { name: 'Статистика поиска', href: '/search-stats', icon: Search, roles: [UserRole.ADMIN] },
   { name: 'AI Модерация', href: '/ai-moderation-payments', icon: Shield, roles: [UserRole.ADMIN] },
   { name: 'OpenRouter', href: '/openrouter', icon: Bot, roles: [UserRole.ADMIN] },
 ];

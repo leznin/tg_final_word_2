@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Plus, Trash2, Image, Video, MessageCircle } from 'lucide-react';
 import { MediaUploader } from '../ui/MediaUploader';
 import { useUpdateWelcomeMessage } from '../../hooks/useChats';
@@ -30,6 +30,7 @@ export const WelcomeMessageModal: React.FC<WelcomeMessageModalProps> = ({ chat, 
   const [buttons, setButtons] = useState<WelcomeMessageButton[][]>(
     chat.welcome_message_buttons ? JSON.parse(JSON.stringify(chat.welcome_message_buttons)) : []
   );
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const updateWelcomeMessage = useUpdateWelcomeMessage();
   const uploadMediaMutation = useUploadChatMedia();
@@ -92,7 +93,27 @@ export const WelcomeMessageModal: React.FC<WelcomeMessageModalProps> = ({ chat, 
   };
 
   const insertVariable = (variable: string) => {
-    setText(text + variable);
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      // Fallback if ref is not available
+      setText(text + variable);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = text;
+
+    // Replace selected text or insert at cursor position
+    const newText = currentText.substring(0, start) + variable + currentText.substring(end);
+    setText(newText);
+
+    // Set cursor position after the inserted variable
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPosition = start + variable.length;
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+    }, 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,6 +191,7 @@ export const WelcomeMessageModal: React.FC<WelcomeMessageModalProps> = ({ chat, 
                   Текст сообщения *
                 </label>
                 <textarea
+                  ref={textareaRef}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   rows={4}

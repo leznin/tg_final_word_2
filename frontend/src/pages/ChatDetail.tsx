@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MessageSquare, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MessageSquare, MessageCircle, Upload } from 'lucide-react';
 import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { Select } from '../components/ui/Select';
@@ -8,6 +8,7 @@ import { ChatPostsList } from '../components/chat/ChatPostsList';
 import { CreatePostModal } from '../components/modals/CreatePostModal';
 import { WelcomeMessageModal } from '../components/modals/WelcomeMessageModal';
 import { TelegramMessagePreview } from '../components/chat/TelegramMessagePreview';
+import { UserFileUploadModal } from '../components/chat/UserFileUploadModal';
 
 export const ChatDetail: React.FC = () => {
   const { chatId } = useParams<{ chatId: string }>();
@@ -26,6 +27,9 @@ export const ChatDetail: React.FC = () => {
   // Chat info tabs state
   const [activeTab, setActiveTab] = useState<'info' | 'moderators' | 'welcome'>('welcome');
   const [showWelcomeMessageModal, setShowWelcomeMessageModal] = useState(false);
+
+  // User file upload state
+  const [showUserFileUpload, setShowUserFileUpload] = useState(false);
 
   // Chat members search and pagination state
   const [memberSearch, setMemberSearch] = useState('');
@@ -661,6 +665,13 @@ export const ChatDetail: React.FC = () => {
                   {membersData?.total || 0}
                 </span>
               </div>
+              <button
+                onClick={() => setShowUserFileUpload(true)}
+                className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                title="Загрузить из файла"
+              >
+                <Upload className="h-3.5 w-3.5" />
+              </button>
             </div>
 
             {/* Search */}
@@ -865,6 +876,18 @@ export const ChatDetail: React.FC = () => {
             welcome_message_buttons: chat.welcome_message_buttons,
           }}
           onClose={() => setShowWelcomeMessageModal(false)}
+        />
+      )}
+
+      {/* Модальное окно загрузки файла с User ID */}
+      {showUserFileUpload && (
+        <UserFileUploadModal
+          chatId={chat.id}
+          onClose={() => setShowUserFileUpload(false)}
+          onSuccess={() => {
+            // Refresh chat members after successful verification
+            window.location.reload();
+          }}
         />
       )}
     </div>

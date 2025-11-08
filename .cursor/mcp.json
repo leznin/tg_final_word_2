@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/sdk", "server", "--stdio"],
+      "env": {
+        "MCP_SERVER_TYPE": "filesystem",
+        "ALLOWED_PATHS": "/Users/s3s3s/Desktop/final word 2.8.1"  //заменить на путь к проекту
+      }
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "puppeteer-mcp-server"]
+    },
+    "mcp-starter": {
+      "command": "npx",
+      "args": ["-y", "mcp-starter"]
+    },
+    "python-executor": {
+      "command": "python3",
+      "args": ["-c", "import sys; exec(sys.stdin.read())"]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "enhanced-postgres-mcp-server"],
+      "env": {
+        "DATABASE_URL": "mysql+aiomysql://root:696578As@localhost/final?charset=utf8mb4" // заменить на доступ к базе данных 
+      }
+    },
+    "mysql-shell": {
+      "command": "npx",
+      "args": ["-y", "python-shell"],
+      "env": {
+        "PYTHONPATH": "/usr/local/lib/python3.9/site-packages"
+      }
+    }
+  }
+}

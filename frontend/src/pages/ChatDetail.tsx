@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MessageSquare, MessageCircle, Upload } from 'lucide-react';
-import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription } from '../hooks/useChats';
+import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription, useGetTelegramAdmins, useAddModeratorFromTelegram } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { Select } from '../components/ui/Select';
 import { ChatPostsList } from '../components/chat/ChatPostsList';
@@ -62,6 +62,12 @@ export const ChatDetail: React.FC = () => {
   // Hooks for moderators
   const { data: moderatorsData } = useChatModerators(chatId!);
   const removeModeratorMutation = useRemoveModerator();
+  const getTelegramAdminsMutation = useGetTelegramAdmins();
+  const addModeratorFromTelegramMutation = useAddModeratorFromTelegram();
+
+  // State for Telegram admins
+  const [telegramAdmins, setTelegramAdmins] = useState<any[]>([]);
+  const [showTelegramAdmins, setShowTelegramAdmins] = useState(false);
 
   // Hooks for chat members
   const { data: membersData, isLoading: membersLoading } = useChatMembers(chatId!, memberSearch, memberPage, memberPageSize);
@@ -103,6 +109,46 @@ export const ChatDetail: React.FC = () => {
         console.error('Failed to remove moderator:', error);
         alert('Не удалось удалить модератора');
       }
+    }
+  };
+
+  const handleGetTelegramAdmins = async () => {
+    try {
+      const result = await getTelegramAdminsMutation.mutateAsync(chatId!);
+      setTelegramAdmins(result.admins);
+      setShowTelegramAdmins(true);
+    } catch (error) {
+      console.error('Failed to get Telegram admins:', error);
+      alert('Не удалось получить список администраторов из Telegram');
+    }
+  };
+
+  const handleAddModeratorFromTelegram = async (admin: any) => {
+    try {
+      // Get current user from localStorage
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        alert('Необходимо войти в систему');
+        return;
+      }
+      const user = JSON.parse(userStr);
+
+      await addModeratorFromTelegramMutation.mutateAsync({
+        chatId: chatId!,
+        moderatorData: {
+          moderator_user_id: admin.user_id,
+          first_name: admin.first_name,
+          last_name: admin.last_name,
+          username: admin.username,
+          added_by_user_id: user.id
+        }
+      });
+      alert('Модератор успешно добавлен!');
+      // Remove admin from the list after adding
+      setTelegramAdmins(prev => prev.filter(a => a.user_id !== admin.user_id));
+    } catch (error) {
+      console.error('Failed to add moderator:', error);
+      alert('Не удалось добавить модератора');
     }
   };
 
@@ -602,6 +648,96 @@ export const ChatDetail: React.FC = () => {
               {/* Вкладка: Модераторы */}
               {activeTab === 'moderators' && (
                 <div>
+                  {/* Кнопка для получения администраторов из Telegram */}
+                  <div className="mb-4">
+                    <button
+                      onClick={handleGetTelegramAdmins}
+                      disabled={getTelegramAdminsMutation.isPending}
+                      className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm font-medium"
+                    >
+                      {getTelegramAdminsMutation.isPending ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Загрузка...
+                        </>
+                      ) : (
+                        <>
+                          <Users className="h-4 w-4 mr-2" />
+                          Получить администраторов из Telegram
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Список администраторов из Telegram */}
+                  {showTelegramAdmins && telegramAdmins.length > 0 && (
+                    <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="text-sm font-bold text-blue-900 mb-2 flex items-center">
+                        <Users className="h-4 w-4 mr-2" />
+                        Администраторы из Telegram ({telegramAdmins.length})
+                      </h4>
+                      <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
+                        {telegramAdmins.map((admin) => (
+                          <div key={admin.user_id} className="bg-white rounded-lg p-2 border border-blue-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <User className="w-4 h-4 text-blue-700" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="text-xs font-medium text-gray-900 truncate">
+                                    {admin.first_name} {admin.last_name || ''}
+                                  </h5>
+                                  <div className="text-[10px] text-gray-600 font-mono">
+                                    ID: {admin.user_id}
+                                  </div>
+                                  {admin.username && (
+                                    <div className="text-[10px] text-blue-600">
+                                      @{admin.username}
+                                    </div>
+                                  )}
+                                  {admin.custom_title && (
+                                    <div className="text-[10px] text-gray-500 italic">
+                                      {admin.custom_title}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleAddModeratorFromTelegram(admin)}
+                                disabled={addModeratorFromTelegramMutation.isPending}
+                                className="ml-2 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 text-xs font-medium whitespace-nowrap"
+                              >
+                                Сделать модератором
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowTelegramAdmins(false);
+                          setTelegramAdmins([]);
+                        }}
+                        className="mt-2 text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Закрыть список
+                      </button>
+                    </div>
+                  )}
+
+                  {showTelegramAdmins && telegramAdmins.length === 0 && (
+                    <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <p className="text-xs text-yellow-800">
+                        В чате нет администраторов (кроме ботов)
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Список текущих модераторов */}
+                  <div className="mb-2">
+                    <h4 className="text-sm font-bold text-purple-900 mb-2">Текущие модераторы:</h4>
+                  </div>
                   {(moderatorsData || moderators).length > 0 ? (
                     <div className="grid grid-cols-2 gap-2">
                       {(moderatorsData || moderators).map((moderator) => (

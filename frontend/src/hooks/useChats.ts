@@ -123,6 +123,31 @@ export const useRemoveModerator = () => {
   });
 };
 
+export const useGetTelegramAdmins = () => {
+  return useMutation({
+    mutationFn: async (chatId: string): Promise<{ admins: any[] }> => {
+      const response = await api.get(`/moderators/chat/${chatId}/telegram-admins`);
+      return response.data;
+    },
+  });
+};
+
+export const useAddModeratorFromTelegram = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ chatId, moderatorData }: { chatId: string; moderatorData: any }): Promise<ChatModerator> => {
+      const response = await api.post(`/moderators/chat/${chatId}/add-from-telegram`, moderatorData);
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['chat-moderators'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-detail'] });
+    },
+  });
+};
+
 export const useChatMembers = (chatId: string, search: string = '', page: number = 1, pageSize: number = 30) => {
   const skip = (page - 1) * pageSize;
 

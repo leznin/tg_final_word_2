@@ -77,6 +77,7 @@ export interface ChatDetail {
   is_active: boolean;
   delete_messages_enabled: boolean;
   ai_content_check_enabled: boolean;
+  notify_on_user_changes: boolean;
   max_edit_time_minutes: number;
   member_count?: number;
   description?: string;

@@ -14,8 +14,9 @@ from app.schemas.telegram_users import TelegramUserCreate, TelegramUserUpdate, T
 class TelegramUserService:
     """Service class for telegram user operations"""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, bot=None):
         self.db = db
+        self.bot = bot  # Optional bot instance for sending notifications
 
     async def create_telegram_user(self, user_data: TelegramUserCreate) -> TelegramUser:
         """Create a new telegram user"""
@@ -46,6 +47,7 @@ class TelegramUserService:
     async def _record_history_change(self, telegram_user_id: int, field_name: str, old_value: Optional[str], new_value: Optional[str]) -> None:
         """Record a change in telegram user history if the value actually changed"""
         if old_value != new_value:
+            print(f"[USER_CHANGE] User {telegram_user_id}: {field_name} changed from '{old_value}' to '{new_value}'")
             history_entry = TelegramUserHistory(
                 telegram_user_id=telegram_user_id,
                 field_name=field_name,
@@ -53,6 +55,27 @@ class TelegramUserService:
                 new_value=new_value
             )
             self.db.add(history_entry)
+            
+            # Send notifications to groups if bot instance is available
+            if self.bot:
+                print(f"[USER_CHANGE] Bot instance available, sending notifications...")
+                try:
+                    from app.telegram.services.user_change_notifications import UserChangeNotificationService
+                    notification_service = UserChangeNotificationService(self.db, self.bot)
+                    await notification_service.notify_user_changes(
+                        telegram_user_id=telegram_user_id,
+                        field_name=field_name,
+                        old_value=old_value,
+                        new_value=new_value
+                    )
+                    print(f"[USER_CHANGE] Notifications sent successfully")
+                except Exception as e:
+                    # Don't fail the user update if notification fails
+                    print(f"[USER_CHANGE] Failed to send user change notification: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print(f"[USER_CHANGE] Bot instance not available, skipping notifications")
 
     async def create_or_update_user_from_telegram(self, telegram_user_data: TelegramUserData) -> TelegramUser:
         """Create or update telegram user from Telegram API data"""

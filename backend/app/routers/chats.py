@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 from typing import List
 
 from app.core.database import get_db
-from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelRequest, ChatWithLinkedChannelResponse, ChatSubscriptionInfo, WelcomeMessageUpdate
+from app.schemas.chats import ChatResponse, ChatWithUserResponse, LinkChannelRequest, ChatWithLinkedChannelResponse, ChatSubscriptionInfo, WelcomeMessageUpdate, ChatUpdate
 from app.services.chats import ChatService
 from app.services.chat_subscriptions import ChatSubscriptionsService
 from app.models.chats import Chat
@@ -265,6 +265,47 @@ async def get_chat_by_telegram_id(
         "max_edit_time_minutes": chat.message_edit_timeout_minutes or 0,
         "channel_count": channel_count,
         "linked_channel_id": chat.linked_channel_id,
+    }
+
+
+@router.patch("/{chat_id}")
+async def update_chat(
+    chat_id: int,
+    chat_update: ChatUpdate,
+    db: AsyncSession = Depends(get_db),
+    user_info: dict = Depends(get_current_admin_user)
+):
+    """Update chat settings"""
+    print(f"[PATCH /chats/{chat_id}] Received update: {chat_update.model_dump()}")
+    chat_service = ChatService(db)
+    
+    # Check if chat exists
+    chat = await chat_service.get_chat(chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    print(f"[PATCH /chats/{chat_id}] Current notify_on_user_changes: {chat.notify_on_user_changes}")
+    
+    # Check manager access
+    if user_info.get("role") == UserRole.MANAGER.value:
+        access_service = ManagerChatAccessService(db)
+        has_access = await access_service.manager_has_chat_access(user_info["user_id"], chat_id)
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Access denied to this chat")
+    
+    # Update chat
+    updated_chat = await chat_service.update_chat(chat_id, chat_update)
+    if not updated_chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    print(f"[PATCH /chats/{chat_id}] Updated notify_on_user_changes: {updated_chat.notify_on_user_changes}")
+    
+    return {
+        "id": updated_chat.id,
+        "telegram_chat_id": updated_chat.telegram_chat_id,
+        "title": updated_chat.title,
+        "notify_on_user_changes": updated_chat.notify_on_user_changes,
+        "message": "Chat settings updated successfully"
     }
 
 

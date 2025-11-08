@@ -33,7 +33,7 @@ class UserVerificationService:
         """
         self.bot = bot
         self.db = db
-        self.telegram_user_service = TelegramUserService(db)
+        self.telegram_user_service = TelegramUserService(db, bot)
         
         # Progress tracking
         self.is_running = False

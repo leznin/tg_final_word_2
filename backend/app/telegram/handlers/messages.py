@@ -134,6 +134,37 @@ async def handle_edited_message(message: types.Message, db: AsyncSession, bot: B
     if message.chat.type not in ['group', 'supergroup']:
         return
 
+    # Update user information when they send/edit messages
+    if message.from_user and not message.from_user.is_bot:
+        try:
+            from app.services.telegram_users import TelegramUserService
+            from app.schemas.telegram_users import TelegramUserData
+            from app.utils.account_age import get_account_creation_date
+            
+            telegram_user_service = TelegramUserService(db, bot)
+            account_creation_date = await get_account_creation_date(message.from_user.id)
+            
+            telegram_user_data = TelegramUserData(
+                telegram_user_id=message.from_user.id,
+                is_bot=message.from_user.is_bot,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                username=message.from_user.username,
+                language_code=message.from_user.language_code,
+                is_premium=getattr(message.from_user, 'is_premium', None),
+                added_to_attachment_menu=getattr(message.from_user, 'added_to_attachment_menu', None),
+                can_join_groups=getattr(message.from_user, 'can_join_groups', None),
+                can_read_all_group_messages=getattr(message.from_user, 'can_read_all_group_messages', None),
+                supports_inline_queries=getattr(message.from_user, 'supports_inline_queries', None),
+                can_connect_to_business=getattr(message.from_user, 'can_connect_to_business', None),
+                has_main_web_app=getattr(message.from_user, 'has_main_web_app', None),
+                account_creation_date=account_creation_date
+            )
+            
+            await telegram_user_service.create_or_update_user_from_telegram(telegram_user_data)
+        except Exception as e:
+            print(f"Error updating user info: {e}")
+
     chat_service = ChatService(db)
     message_service = MessageService(db)
     chat_member_service = ChatMemberService(db)
@@ -579,13 +610,44 @@ async def handle_moderator_forward_for_adding(
 
 
 @message_router.message()
-async def handle_new_message(message: types.Message, db: AsyncSession) -> None:
+async def handle_new_message(message: types.Message, db: AsyncSession, bot: Bot) -> None:
     """
     Handle new messages - save to database and log chat members
     """
     # Only process messages from group chats (not private chats or channels)
     if message.chat.type not in ['group', 'supergroup']:
         return
+
+    # Update user information when they send messages
+    if message.from_user and not message.from_user.is_bot:
+        try:
+            from app.services.telegram_users import TelegramUserService
+            from app.schemas.telegram_users import TelegramUserData
+            from app.utils.account_age import get_account_creation_date
+            
+            telegram_user_service = TelegramUserService(db, bot)
+            account_creation_date = await get_account_creation_date(message.from_user.id)
+            
+            telegram_user_data = TelegramUserData(
+                telegram_user_id=message.from_user.id,
+                is_bot=message.from_user.is_bot,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                username=message.from_user.username,
+                language_code=message.from_user.language_code,
+                is_premium=getattr(message.from_user, 'is_premium', None),
+                added_to_attachment_menu=getattr(message.from_user, 'added_to_attachment_menu', None),
+                can_join_groups=getattr(message.from_user, 'can_join_groups', None),
+                can_read_all_group_messages=getattr(message.from_user, 'can_read_all_group_messages', None),
+                supports_inline_queries=getattr(message.from_user, 'supports_inline_queries', None),
+                can_connect_to_business=getattr(message.from_user, 'can_connect_to_business', None),
+                has_main_web_app=getattr(message.from_user, 'has_main_web_app', None),
+                account_creation_date=account_creation_date
+            )
+            
+            await telegram_user_service.create_or_update_user_from_telegram(telegram_user_data)
+        except Exception as e:
+            print(f"Error updating user info: {e}")
 
     # Handle chat information updates (title, description changes)
     has_chat_update = False

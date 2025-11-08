@@ -221,3 +221,22 @@ export const useUpdateWelcomeMessage = () => {
     },
   });
 };
+
+export const useUpdateChatSettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ chatId, settings }: { chatId: string | number; settings: { notify_on_user_changes?: boolean } }): Promise<void> => {
+      console.log('useUpdateChatSettings - Sending PATCH request:', { chatId, settings });
+      // Send settings directly, not nested
+      const response = await api.patch(`/chats/${chatId}`, settings);
+      console.log('useUpdateChatSettings - Response:', response.data);
+    },
+    onSuccess: (_, variables) => {
+      console.log('useUpdateChatSettings - Success, invalidating queries for chatId:', variables.chatId);
+      // Invalidate related queries with specific chat ID
+      queryClient.invalidateQueries({ queryKey: ['chats'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-detail', variables.chatId.toString()] });
+    },
+  });
+};

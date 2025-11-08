@@ -88,10 +88,10 @@ class ChatMemberService:
         await self.db.refresh(db_member)
         return db_member
 
-    async def create_or_update_member_from_telegram(self, chat_id: int, telegram_user_data: TelegramUserData) -> ChatMember:
+    async def create_or_update_member_from_telegram(self, chat_id: int, telegram_user_data: TelegramUserData, bot=None) -> ChatMember:
         """Create or update chat member from Telegram API data"""
         # First, create or update the telegram user
-        telegram_user_service = TelegramUserService(self.db)
+        telegram_user_service = TelegramUserService(self.db, bot)
         telegram_user = await telegram_user_service.create_or_update_user_from_telegram(telegram_user_data)
 
         # Then, check if the chat membership already exists

@@ -98,6 +98,12 @@ def get_chat_actions_keyboard(chat: Chat, linked_channel: Chat = None) -> Inline
             callback_data=f"ai_content_check_settings:{chat.id}"
         )])
 
+        # User change notifications button (only for group chats)
+        keyboard.append([InlineKeyboardButton(
+            text=ButtonTexts.USER_CHANGE_NOTIFICATIONS,
+            callback_data=f"user_change_notifications:{chat.id}"
+        )])
+
     # Back button
     keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data="back_to_menu")])
 
@@ -128,6 +134,14 @@ def get_back_to_chats_keyboard() -> InlineKeyboardMarkup:
     Keyboard with back to chats button
     """
     keyboard = [[InlineKeyboardButton(text=ButtonTexts.BACK_TO_CHATS, callback_data="back_to_chats_after_success")]]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_back_to_chat_actions_keyboard(chat_id: int) -> InlineKeyboardMarkup:
+    """
+    Keyboard with back to chat actions button
+    """
+    keyboard = [[InlineKeyboardButton(text=ButtonTexts.BACK, callback_data=f"back_to_chat_actions:{chat_id}")]]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
@@ -273,6 +287,37 @@ def get_ai_content_check_options_keyboard(chat_id: int, current_status: bool) ->
             text=ButtonTexts.DISABLE_AI_CHECK,
             callback_data=f"set_ai_check:disable:{chat_id}"
         )])
+
+    # Back button
+    keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data=f"back_to_chat_actions:{chat_id}")])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_user_change_notifications_keyboard(chat_id: int, enabled: bool) -> InlineKeyboardMarkup:
+    """
+    Keyboard for user change notification settings
+    """
+    from app.telegram.utils.constants import UserChangeNotificationMessages
+    
+    keyboard = []
+
+    # Enable/Disable buttons based on current status
+    if not enabled:
+        keyboard.append([InlineKeyboardButton(
+            text=UserChangeNotificationMessages.ENABLE_BUTTON,
+            callback_data=f"toggle_user_notifications:enable:{chat_id}"
+        )])
+    else:
+        keyboard.append([InlineKeyboardButton(
+            text=UserChangeNotificationMessages.DISABLE_BUTTON,
+            callback_data=f"toggle_user_notifications:disable:{chat_id}"
+        )])
+
+    # Back button
+    keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data=f"back_to_chat_actions:{chat_id}")])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     # Back button
     keyboard.append([InlineKeyboardButton(text=ButtonTexts.BACK, callback_data=f"back_to_chat_actions:{chat_id}")])

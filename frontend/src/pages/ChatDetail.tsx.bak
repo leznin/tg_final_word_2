@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MessageSquare, MessageCircle, Upload } from 'lucide-react';
-import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription, useGetTelegramAdmins, useAddModeratorFromTelegram } from '../hooks/useChats';
+import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription, useGetTelegramAdmins, useAddModeratorFromTelegram, useUpdateChatSettings } from '../hooks/useChats';
 import { Loading } from '../components/ui/Loading';
 import { Select } from '../components/ui/Select';
 import { ChatPostsList } from '../components/chat/ChatPostsList';
@@ -78,6 +78,9 @@ export const ChatDetail: React.FC = () => {
   // Hooks for subscription management
   const createSubscriptionMutation = useCreateChatSubscription();
   const deactivateSubscriptionMutation = useDeactivateChatSubscription();
+
+  // Hook for updating chat settings
+  const updateChatSettingsMutation = useUpdateChatSettings();
 
   if (isLoading) return <Loading />;
   if (!data) return <div>Чат не найден</div>;
@@ -191,6 +194,18 @@ export const ChatDetail: React.FC = () => {
     }
   };
 
+  const handleToggleNotifications = async () => {
+    try {
+      await updateChatSettingsMutation.mutateAsync({
+        chatId: chat.id,
+        settings: { notify_on_user_changes: !chat.notify_on_user_changes }
+      });
+    } catch (error) {
+      console.error('Failed to toggle notifications:', error);
+      alert('Не удалось изменить настройки уведомлений');
+    }
+  };
+
   const statsCards = [
     {
       title: 'Модераторы',
@@ -261,6 +276,14 @@ export const ChatDetail: React.FC = () => {
           ))}
         </div>
 
+        {/* Статусы в заголовке */}
+        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/20">
+          <span className={`text-xs px-2.5 py-1 rounded-lg font-medium backdrop-blur-sm ${
+            chat.notify_on_user_changes ? 'bg-blue-500/30' : 'bg-white/20'
+          }`}>
+            � Уведомления: {chat.notify_on_user_changes ? 'Вкл' : 'Откл'}
+          </span>
+        </div>
       </div>
 
       {/* Основная сетка с 3 колонками */}

@@ -22,13 +22,17 @@ from app.telegram.keyboards.chat_management import (
     get_moderator_actions_keyboard,
     get_moderators_list_keyboard,
     get_confirm_remove_moderator_keyboard,
-    get_ai_content_check_options_keyboard
+    get_ai_content_check_options_keyboard,
+    get_user_change_notifications_keyboard,
+    get_back_to_chat_actions_keyboard
 )
 from app.telegram.utils.constants import (
     StartMessages, ChatManagementMessages, ChannelLinkingMessages,
-    HelpMessages, ErrorMessages, ButtonTexts, MessageEditingMessages, ModeratorMessages, PaymentMessages
+    HelpMessages, ErrorMessages, ButtonTexts, MessageEditingMessages, ModeratorMessages, PaymentMessages,
+    UserChangeNotificationMessages
 )
 
+# Create router for chat management
 # Create router for chat management
 chat_management_router = Router()
 
@@ -1078,6 +1082,7 @@ async def handle_ai_check_option_selection(
     update_data = ChatUpdate(ai_content_check_enabled=new_setting)
     updated_chat = await linking_service.chat_service.update_chat(chat_id, update_data)
 
+
     if updated_chat:
         # Return to chat actions
         linked_channel = await linking_service.chat_service.get_linked_channel(chat.id)
@@ -1106,3 +1111,96 @@ async def handle_ai_check_option_selection(
         await callback.message.edit_text(ChatManagementMessages.SETTINGS_SAVED_ERROR)
 
     await state.clear()
+
+
+# User change notifications handlers
+@chat_management_router.callback_query(F.data.startswith("user_change_notifications:"))
+async def handle_user_change_notifications_settings(callback: types.CallbackQuery, db: AsyncSession) -> None:
+    """
+    Show user change notifications settings
+    """
+    try:
+        chat_id = int(callback.data.split(":")[1])
+        linking_service = ChatLinkingService(db)
+
+        # Get chat
+        chat = await linking_service.chat_service.get_chat(chat_id)
+        if not chat:
+            await callback.message.edit_text(ChatManagementMessages.CHAT_NOT_FOUND)
+            return
+
+        # Check access - user must be the one who added the bot
+        user = await linking_service.user_service.get_user_by_telegram_id(callback.from_user.id)
+        if not user or chat.added_by_user_id != user.id:
+            await callback.answer("У вас нет доступа к этому чату", show_alert=True)
+            return
+
+        # Get current status
+        enabled = chat.notify_on_user_changes
+
+        # Show settings
+        status_text = UserChangeNotificationMessages.STATUS_ENABLED if enabled else UserChangeNotificationMessages.STATUS_DISABLED
+        message_text = UserChangeNotificationMessages.SETTINGS_TEMPLATE.format(
+            chat_title=chat.title or ButtonTexts.UNTITLED_CHAT,
+            status=status_text
+        )
+
+        keyboard = get_user_change_notifications_keyboard(chat_id, enabled)
+        await callback.message.edit_text(
+            message_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+
+    except Exception as e:
+        print(f"Error showing user change notification settings: {e}")
+        await callback.message.edit_text(UserChangeNotificationMessages.ERROR)
+
+
+@chat_management_router.callback_query(F.data.startswith("toggle_user_notifications:"))
+async def handle_toggle_user_notifications(callback: types.CallbackQuery, db: AsyncSession, bot) -> None:
+    """
+    Toggle user change notifications on/off
+    """
+    try:
+        parts = callback.data.split(":")
+        action = parts[1]  # 'enable' or 'disable'
+        chat_id = int(parts[2])
+
+        from app.telegram.services.user_change_notifications import UserChangeNotificationService
+        notification_service = UserChangeNotificationService(db, bot)
+
+        # Toggle the setting
+        enabled = action == "enable"
+        success = await notification_service.toggle_notifications(chat_id, enabled)
+
+        if success:
+            success_message = (
+                UserChangeNotificationMessages.ENABLED_SUCCESS if enabled 
+                else UserChangeNotificationMessages.DISABLED_SUCCESS
+            )
+            await callback.answer(success_message, show_alert=True)
+
+            # Refresh the settings view
+            linking_service = ChatLinkingService(db)
+            chat = await linking_service.chat_service.get_chat(chat_id)
+
+            status_text = UserChangeNotificationMessages.STATUS_ENABLED if enabled else UserChangeNotificationMessages.STATUS_DISABLED
+            message_text = UserChangeNotificationMessages.SETTINGS_TEMPLATE.format(
+                chat_title=chat.title or ButtonTexts.UNTITLED_CHAT,
+                status=status_text
+            )
+
+            keyboard = get_user_change_notifications_keyboard(chat_id, enabled)
+            await callback.message.edit_text(
+                message_text,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+        else:
+            await callback.answer(UserChangeNotificationMessages.ERROR, show_alert=True)
+
+    except Exception as e:
+        print(f"Error toggling user change notifications: {e}")
+        await callback.answer(UserChangeNotificationMessages.ERROR, show_alert=True)
+

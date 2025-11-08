@@ -59,7 +59,7 @@ async def handle_chat_member_update(update: types.ChatMemberUpdated, db: AsyncSe
     try:
         chat_service = ChatService(db)
         member_service = ChatMemberService(db)
-        telegram_user_service = TelegramUserService(db)
+        telegram_user_service = TelegramUserService(db, bot)
 
         # Get the chat from database
         chat = await chat_service.get_chat_by_telegram_id(update.chat.id)
@@ -101,7 +101,7 @@ async def handle_chat_member_update(update: types.ChatMemberUpdated, db: AsyncSe
 
         if status_change == 'joined':
             # User joined the chat
-            await member_service.create_or_update_member_from_telegram(chat.id, telegram_user_data)
+            await member_service.create_or_update_member_from_telegram(chat.id, telegram_user_data, bot)
             print(f"  ✅ User {user.id} joined chat {chat.id}")
             
             # Send welcome message if enabled

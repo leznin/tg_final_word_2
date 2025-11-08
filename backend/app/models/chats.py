@@ -34,6 +34,9 @@ class Chat(Base):
     # Delete messages enabled flag
     delete_messages_enabled = Column(Boolean, default=False, nullable=False)
 
+    # User change notifications enabled flag
+    notify_on_user_changes = Column(Boolean, default=True, nullable=False)
+
     # Additional information from Telegram API
     member_count = Column(Integer, nullable=True)
     description = Column(Text, nullable=True)

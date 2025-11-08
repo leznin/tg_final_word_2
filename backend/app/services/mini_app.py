@@ -8,19 +8,22 @@ import json
 import secrets
 from urllib.parse import unquote, parse_qs
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, and_
 from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
 from aiogram import Bot
 from app.models.users import User
 from app.models.telegram_users import TelegramUser
 from app.models.telegram_user_history import TelegramUserHistory
+from app.models.user_search_logs import UserSearchLog
 from app.schemas.mini_app import (
     TelegramUserVerifyRequest,
     TelegramUserVerifyResponse,
     UserSearchRequest,
     UserSearchResult,
     UserSearchResponse,
-    UserHistoryEntry
+    UserHistoryEntry,
+    SearchLimitResponse
 )
 from app.core.config import settings
 
@@ -28,8 +31,82 @@ from app.core.config import settings
 class MiniAppService:
     """Service class for mini app operations"""
 
+    # Constants
+    MAX_SEARCHES_PER_DAY = 10
+
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _check_search_limit(self, user_id: int) -> tuple[bool, int]:
+        """
+        Check if user has reached daily search limit.
+        Returns (can_search: bool, remaining_searches: int)
+        """
+        # Calculate 24 hours ago
+        twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+        
+        # Count searches in last 24 hours
+        count_query = select(func.count()).select_from(UserSearchLog).where(
+            and_(
+                UserSearchLog.user_id == user_id,
+                UserSearchLog.searched_at >= twenty_four_hours_ago
+            )
+        )
+        result = await self.db.execute(count_query)
+        searches_count = result.scalar() or 0
+        
+        remaining = self.MAX_SEARCHES_PER_DAY - searches_count
+        can_search = searches_count < self.MAX_SEARCHES_PER_DAY
+        
+        return can_search, max(0, remaining)
+
+    async def _log_search(self, user_id: int, telegram_user_id: int, query: str, results_count: int):
+        """Log a search operation"""
+        search_log = UserSearchLog(
+            user_id=user_id,
+            telegram_user_id=telegram_user_id,
+            search_query=query,
+            results_count=results_count
+        )
+        self.db.add(search_log)
+        await self.db.commit()
+
+    async def get_search_limits(self, user_id: int) -> SearchLimitResponse:
+        """Get current search limits for a user"""
+        twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+        
+        # Count searches in last 24 hours
+        count_query = select(func.count()).select_from(UserSearchLog).where(
+            and_(
+                UserSearchLog.user_id == user_id,
+                UserSearchLog.searched_at >= twenty_four_hours_ago
+            )
+        )
+        result = await self.db.execute(count_query)
+        searches_count = result.scalar() or 0
+        
+        # Get oldest search timestamp to calculate reset time
+        oldest_search_query = select(UserSearchLog.searched_at).where(
+            and_(
+                UserSearchLog.user_id == user_id,
+                UserSearchLog.searched_at >= twenty_four_hours_ago
+            )
+        ).order_by(UserSearchLog.searched_at.asc()).limit(1)
+        
+        oldest_result = await self.db.execute(oldest_search_query)
+        oldest_search = oldest_result.scalar_one_or_none()
+        
+        # Reset time is 24 hours from the oldest search, or now if no searches
+        reset_time = (oldest_search + timedelta(hours=24)) if oldest_search else datetime.utcnow()
+        
+        remaining = max(0, self.MAX_SEARCHES_PER_DAY - searches_count)
+        
+        return SearchLimitResponse(
+            total_searches_today=searches_count,
+            max_searches_per_day=self.MAX_SEARCHES_PER_DAY,
+            remaining_searches=remaining,
+            reset_time=reset_time
+        )
 
     def _generate_session_token(self, user_id: int) -> str:
         """Generate a unique session token for the user"""
@@ -243,9 +320,21 @@ class MiniAppService:
                 message=f"Verification failed: {str(e)}"
             )
 
-    async def search_users(self, request: UserSearchRequest) -> UserSearchResponse:
-        """Search users by ID or username only"""
+    async def search_users(self, request: UserSearchRequest, user_id: int) -> UserSearchResponse:
+        """Search users by ID or username only with rate limiting"""
         try:
+            # Check search limit
+            can_search, remaining = await self._check_search_limit(user_id)
+            
+            if not can_search:
+                # Return empty results with total 0 to indicate limit reached
+                return UserSearchResponse(
+                    results=[],
+                    total=0,
+                    limit=request.limit,
+                    offset=request.offset
+                )
+
             query_lower = request.query.lower().strip()
 
             # Build search conditions for TelegramUser (only ID and username)
@@ -273,6 +362,9 @@ class MiniAppService:
             )
             total_result = await self.db.execute(count_query)
             total = total_result.scalar()
+
+            # Log this search
+            await self._log_search(user_id, request.telegram_user_id, request.query, total)
 
             # Group similar users and mask duplicates
             user_data_list = self._group_similar_users(list(users))

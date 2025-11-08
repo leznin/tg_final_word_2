@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, MessageSquare, Users, User, Bot, Shield, Send, X, UserCheck, UserCog } from 'lucide-react';
+import { Home, MessageSquare, Users, User, Bot, Shield, Send, X, UserCheck, UserCog, Search } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { UserRole } from '../../types';
 
@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Модераторы', href: '/moderators', icon: Users, roles: [UserRole.ADMIN] },
   { name: 'Управление доступом', href: '/admin-users', icon: UserCog, roles: [UserRole.ADMIN] },
   { name: 'Проверка пользователей', href: '/user-verification', icon: UserCheck, roles: [UserRole.ADMIN] },
+  { name: 'Статистика поиска', href: '/search-stats', icon: Search, roles: [UserRole.ADMIN, UserRole.MANAGER] },
   { name: 'AI Модерация', href: '/ai-moderation-payments', icon: Shield, roles: [UserRole.ADMIN] },
   { name: 'OpenRouter', href: '/openrouter', icon: Bot, roles: [UserRole.ADMIN] },
 ];

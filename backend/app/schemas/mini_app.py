@@ -26,6 +26,7 @@ class UserSearchRequest(BaseModel):
     query: str
     limit: Optional[int] = 20
     offset: Optional[int] = 0
+    telegram_user_id: int  # User performing the search
 
 
 class UserHistoryEntry(BaseModel):
@@ -59,3 +60,31 @@ class UserSearchResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class SearchLimitResponse(BaseModel):
+    """Schema for search limit information"""
+    total_searches_today: int
+    max_searches_per_day: int
+    remaining_searches: int
+    reset_time: datetime  # When the limit will reset
+
+
+class SearchStatsEntry(BaseModel):
+    """Schema for individual search statistics entry"""
+    user_id: int
+    telegram_user_id: int
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    total_searches: int
+    last_search_at: datetime
+    searches_today: int
+
+
+class SearchStatsResponse(BaseModel):
+    """Schema for admin search statistics response"""
+    total_users: int
+    total_searches_all_time: int
+    total_searches_today: int
+    stats: List[SearchStatsEntry]

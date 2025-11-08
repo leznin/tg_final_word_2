@@ -1,10 +1,11 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../utils/api'
 import {
   UserSearchRequest,
   UserSearchResponse,
   TelegramUserVerifyRequest,
-  TelegramUserVerifyResponse
+  TelegramUserVerifyResponse,
+  SearchLimitResponse
 } from '../types/mini-app'
 
 export const useUserSearch = () => {
@@ -15,6 +16,10 @@ export const useUserSearch = () => {
       const response = await api.post('/mini-app/search-users', request)
       return response.data
     },
+    onSuccess: () => {
+      // Invalidate search limits to refresh after search
+      queryClient.invalidateQueries({ queryKey: ['searchLimits'] })
+    }
   })
 
   const verifyUserMutation = useMutation({
@@ -23,6 +28,19 @@ export const useUserSearch = () => {
       return response.data
     },
   })
+
+  const useSearchLimits = (telegramUserId?: number) => {
+    return useQuery<SearchLimitResponse>({
+      queryKey: ['searchLimits', telegramUserId],
+      queryFn: async () => {
+        if (!telegramUserId) throw new Error('No telegram user id')
+        const response = await api.get(`/mini-app/search-limits/${telegramUserId}`)
+        return response.data
+      },
+      enabled: !!telegramUserId,
+      refetchInterval: 30000, // Refetch every 30 seconds
+    })
+  }
 
   return {
     searchUsers: searchUsersMutation.mutate,
@@ -36,5 +54,7 @@ export const useUserSearch = () => {
     isVerifying: verifyUserMutation.isPending,
     verifyError: verifyUserMutation.error,
     verifyData: verifyUserMutation.data,
+
+    useSearchLimits,
   }
 }

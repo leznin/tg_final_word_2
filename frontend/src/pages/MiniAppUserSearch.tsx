@@ -9,7 +9,10 @@ import { saveSession, getSession, hasValidSession } from '../utils/sessionStorag
 
 const MiniAppUserSearch: React.FC = () => {
   const { isReady, user, initData, error: telegramError, hapticFeedback, theme } = useTelegramWebApp()
-  const { verifyUserAsync, searchUsersAsync, isSearching } = useUserSearch()
+  const { verifyUserAsync, searchUsersAsync, isSearching, useSearchLimits } = useUserSearch()
+
+  // Get search limits
+  const { data: searchLimits } = useSearchLimits(user?.id)
 
   // Create theme styles
   const themeStyles = createThemeStyles(theme)
@@ -96,6 +99,19 @@ const MiniAppUserSearch: React.FC = () => {
       return
     }
 
+    if (!user?.id) {
+      setSearchError('User not authenticated')
+      hapticFeedback.notification('error')
+      return
+    }
+
+    // Check if limit reached
+    if (searchLimits && searchLimits.remaining_searches <= 0) {
+      setSearchError(`Daily search limit reached (${searchLimits.max_searches_per_day} per day). Try again later.`)
+      hapticFeedback.notification('error')
+      return
+    }
+
     setSearchError(null)
     hapticFeedback.selection()
 
@@ -103,14 +119,16 @@ const MiniAppUserSearch: React.FC = () => {
       const response = await searchUsersAsync({
         query: searchQuery.trim(),
         limit: 20,
-        offset: 0
+        offset: 0,
+        telegram_user_id: user.id
       })
 
       setSearchResults(response.results)
       hapticFeedback.notification('success')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Search error:', error)
-      setSearchError('Search error. Please try again.')
+      const errorMessage = error?.response?.data?.detail || 'Search error. Please try again.'
+      setSearchError(errorMessage)
       setSearchResults([])
       hapticFeedback.notification('error')
     }
@@ -172,7 +190,7 @@ const MiniAppUserSearch: React.FC = () => {
   const handleSimilarAccountClick = async (result: UserSearchResult) => {
     // Get real ID from masked account
     const realId = result.real_telegram_user_id || result.telegram_user_id
-    if (!realId) return
+    if (!realId || !user?.id) return
 
     // Set search query to ID
     setSearchQuery(String(realId))
@@ -183,14 +201,16 @@ const MiniAppUserSearch: React.FC = () => {
       const response = await searchUsersAsync({
         query: String(realId),
         limit: 20,
-        offset: 0
+        offset: 0,
+        telegram_user_id: user.id
       })
 
       setSearchResults(response.results)
       hapticFeedback.notification('success')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Search error:', error)
-      setSearchError('Search error. Please try again.')
+      const errorMessage = error?.response?.data?.detail || 'Search error. Please try again.'
+      setSearchError(errorMessage)
       setSearchResults([])
       hapticFeedback.notification('error')
     }
@@ -271,6 +291,25 @@ const MiniAppUserSearch: React.FC = () => {
                 </p>
               )}
             </div>
+            {/* Search limits counter */}
+            {searchLimits && (
+              <div className="flex flex-col items-end">
+                <div 
+                  className={`px-3 py-1.5 rounded-full text-sm font-semibold ${
+                    searchLimits.remaining_searches === 0 
+                      ? 'bg-red-500/20 text-red-400' 
+                      : searchLimits.remaining_searches <= 3
+                        ? 'bg-yellow-500/20 text-yellow-400'
+                        : 'bg-green-500/20 text-green-400'
+                  }`}
+                >
+                  {searchLimits.remaining_searches}/{searchLimits.max_searches_per_day}
+                </div>
+                <span className="text-xs mt-1" style={themeStyles.textHint}>
+                  searches left
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

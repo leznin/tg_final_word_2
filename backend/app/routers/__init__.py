@@ -21,6 +21,7 @@ from app.routers.verification_schedule import router as verification_schedule_ro
 from app.routers.admin_users import router as admin_users_router
 from app.routers.manager_chat_access import router as manager_chat_access_router
 from app.routers.chat_posts import router as chat_posts_router
+from app.routers.admin_search import router as admin_search_router
 
 api_router = APIRouter()
 
@@ -43,4 +44,5 @@ api_router.include_router(verification_schedule_router, prefix="/admin/verificat
 api_router.include_router(admin_users_router, prefix="/admin-users", tags=["admin-users"])
 api_router.include_router(manager_chat_access_router, prefix="/manager-access", tags=["manager-access"])
 api_router.include_router(chat_posts_router, prefix="/chat-posts", tags=["chat-posts"])
+api_router.include_router(admin_search_router, prefix="/admin", tags=["admin-search"])
 

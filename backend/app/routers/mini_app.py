@@ -5,13 +5,16 @@ Mini app API router
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.core.database import get_db
 from app.core.config import settings
+from app.models.users import User
 from app.schemas.mini_app import (
     TelegramUserVerifyRequest,
     TelegramUserVerifyResponse,
     UserSearchRequest,
-    UserSearchResponse
+    UserSearchResponse,
+    SearchLimitResponse
 )
 from app.services.mini_app import MiniAppService
 
@@ -33,7 +36,7 @@ async def search_users(
     request: UserSearchRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    """Search users by username, first name, or last name"""
+    """Search users by username, first name, or last name with rate limiting (10 per day)"""
     if not request.query or len(request.query.strip()) < 2:
         raise HTTPException(
             status_code=400,
@@ -52,8 +55,51 @@ async def search_users(
             detail="Offset must be non-negative"
         )
 
+    # Get user by telegram_user_id
+    user_query = await db.execute(
+        select(User).where(User.telegram_id == request.telegram_user_id)
+    )
+    user = user_query.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
     service = MiniAppService(db)
-    return await service.search_users(request)
+    
+    # Check if user has reached limit
+    can_search, remaining = await service._check_search_limit(user.id)
+    if not can_search:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily search limit reached. You can perform {MiniAppService.MAX_SEARCHES_PER_DAY} searches per day."
+        )
+    
+    return await service.search_users(request, user.id)
+
+
+@router.get("/search-limits/{telegram_user_id}", response_model=SearchLimitResponse)
+async def get_search_limits(
+    telegram_user_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current search limits for a user"""
+    # Get user by telegram_user_id
+    user_query = await db.execute(
+        select(User).where(User.telegram_id == telegram_user_id)
+    )
+    user = user_query.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    
+    service = MiniAppService(db)
+    return await service.get_search_limits(user.id)
 
 
 @router.get("/user-photo/{user_id}")

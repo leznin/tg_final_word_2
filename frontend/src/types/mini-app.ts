@@ -33,6 +33,7 @@ export interface UserSearchRequest {
   query: string
   limit?: number
   offset?: number
+  telegram_user_id: number  // User performing the search
 }
 
 export interface UserHistoryEntry {
@@ -63,4 +64,11 @@ export interface UserSearchResponse {
   total: number
   limit: number
   offset: number
+}
+
+export interface SearchLimitResponse {
+  total_searches_today: number
+  max_searches_per_day: number
+  remaining_searches: number
+  reset_time: string  // ISO date string
 }

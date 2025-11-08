@@ -15,6 +15,7 @@ import { Broadcast } from './pages/Broadcast';
 import { UserVerification } from './pages/UserVerification';
 import { Login } from './pages/Login';
 import { AdminUsers } from './pages/AdminUsers';
+import SearchStats from './pages/SearchStats';
 import { UserRole } from './types';
 
 const queryClient = new QueryClient({
@@ -89,6 +90,11 @@ function App() {
             <Route path="user-verification" element={
               <RoleProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                 <UserVerification />
+              </RoleProtectedRoute>
+            } />
+            <Route path="search-stats" element={
+              <RoleProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+                <SearchStats />
               </RoleProtectedRoute>
             } />
             <Route path="*" element={<Navigate to="/chats" replace />} />

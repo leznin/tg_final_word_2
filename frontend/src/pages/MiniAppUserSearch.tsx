@@ -3,11 +3,13 @@ import { useTelegramWebApp } from '../hooks/useTelegramWebApp'
 import { useUserSearch } from '../hooks/useUserSearch'
 import { UserSearchResult } from '../types/mini-app'
 import { Loading } from '../components/ui/Loading'
+import { UserAvatar } from '../components/UserAvatar'
 import { createThemeStyles } from '../utils/themeUtils'
+import { saveSession, getSession, hasValidSession } from '../utils/sessionStorage'
 
 const MiniAppUserSearch: React.FC = () => {
   const { isReady, user, initData, error: telegramError, hapticFeedback, theme } = useTelegramWebApp()
-  const { verifyUserAsync, searchUsersAsync, isSearching, searchData, verifyData } = useUserSearch()
+  const { verifyUserAsync, searchUsersAsync, isSearching } = useUserSearch()
 
   // Create theme styles
   const themeStyles = createThemeStyles(theme)
@@ -20,7 +22,21 @@ const MiniAppUserSearch: React.FC = () => {
 
   const inputRef = React.useRef<HTMLInputElement>(null)
 
-  // Verify user on component mount
+  // Check for existing session on mount
+  useEffect(() => {
+    console.log('[MiniAppUserSearch] Component mounted, checking for existing session')
+    const existingSession = getSession()
+    
+    if (existingSession && existingSession.verified) {
+      console.log('[MiniAppUserSearch] Found existing valid session, skipping verification')
+      setIsVerified(true)
+      return
+    }
+    
+    console.log('[MiniAppUserSearch] No valid session found, will verify with Telegram')
+  }, [])
+
+  // Verify user on component mount if not already verified
   useEffect(() => {
     console.log('[MiniAppUserSearch] useEffect triggered')
     console.log('[MiniAppUserSearch] isReady:', isReady)
@@ -28,7 +44,7 @@ const MiniAppUserSearch: React.FC = () => {
     console.log('[MiniAppUserSearch] isVerified:', isVerified)
     console.log('[MiniAppUserSearch] user:', user)
     
-    if (isReady && initData && !isVerified) {
+    if (isReady && initData && !isVerified && !hasValidSession()) {
       console.log('[MiniAppUserSearch] Calling verifyUser()')
       verifyUser()
     }
@@ -52,6 +68,13 @@ const MiniAppUserSearch: React.FC = () => {
       
       if (response.verified) {
         setIsVerified(true)
+        
+        // Save session to localStorage
+        if (user?.id) {
+          saveSession(user.id, response.session_token)
+          console.log('[MiniAppUserSearch] Session saved for user:', user.id)
+        }
+        
         hapticFeedback.notification('success')
         console.log('[MiniAppUserSearch] Verification successful!')
       } else {
@@ -68,7 +91,7 @@ const MiniAppUserSearch: React.FC = () => {
     e.preventDefault()
 
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
-      setSearchError('Введите минимум 2 символа для поиска')
+      setSearchError('Enter at least 2 characters to search')
       hapticFeedback.notification('error')
       return
     }
@@ -87,7 +110,7 @@ const MiniAppUserSearch: React.FC = () => {
       hapticFeedback.notification('success')
     } catch (error) {
       console.error('Search error:', error)
-      setSearchError('Ошибка поиска. Попробуйте снова.')
+      setSearchError('Search error. Please try again.')
       setSearchResults([])
       hapticFeedback.notification('error')
     }
@@ -122,7 +145,7 @@ const MiniAppUserSearch: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleString('ru-RU', {
+    return date.toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -133,8 +156,8 @@ const MiniAppUserSearch: React.FC = () => {
 
   const getFieldNameDisplay = (fieldName: string) => {
     const fieldNames: Record<string, string> = {
-      'first_name': 'Имя',
-      'last_name': 'Фамилия',
+      'first_name': 'First Name',
+      'last_name': 'Last Name',
       'username': 'Username'
     }
     return fieldNames[fieldName] || fieldName
@@ -167,7 +190,7 @@ const MiniAppUserSearch: React.FC = () => {
       hapticFeedback.notification('success')
     } catch (error) {
       console.error('Search error:', error)
-      setSearchError('Ошибка поиска. Попробуйте снова.')
+      setSearchError('Search error. Please try again.')
       setSearchResults([])
       hapticFeedback.notification('error')
     }
@@ -229,12 +252,26 @@ const MiniAppUserSearch: React.FC = () => {
       {/* Header */}
       <div className="backdrop-blur-sm shadow-lg" style={themeStyles.header}>
         <div className="px-4 py-4">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            Поиск пользователей
-          </h1>
-          <p className="text-sm mt-2" style={themeStyles.textSecondary}>
-            Привет, {user.first_name || user.username || 'User'}! 👋
-          </p>
+          <div className="flex items-center space-x-3">
+            <UserAvatar 
+              firstName={user.first_name}
+              lastName={user.last_name}
+              username={user.username}
+              size="md"
+              photoUrl={user.photo_url}
+            />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold truncate" style={themeStyles.textPrimary}>
+                {user.first_name || user.username || 'User'}
+                {user.last_name && ` ${user.last_name}`}
+              </h1>
+              {user.username && (
+                <p className="text-sm truncate" style={themeStyles.textSecondary}>
+                  @{user.username}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -247,7 +284,7 @@ const MiniAppUserSearch: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Введите ID или @username"
+              placeholder="Enter ID or @username"
               className="w-full px-4 py-4 pr-20 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-300 adaptive-input"
               style={{
                 ...themeStyles.input,
@@ -312,14 +349,14 @@ const MiniAppUserSearch: React.FC = () => {
               {isSearching ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white flex-shrink-0"></div>
-                  <span>Поиск...</span>
+                  <span>Searching...</span>
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span>Найти пользователей</span>
+                  <span>Find Users</span>
                 </>
               )}
             </div>
@@ -332,7 +369,7 @@ const MiniAppUserSearch: React.FC = () => {
             <div className="flex items-center space-x-3 mb-8">
               <div className="h-8 w-1 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full flex-shrink-0"></div>
               <h2 className="text-lg font-bold" style={themeStyles.textPrimary}>
-                Найдено пользователей: <span style={themeStyles.textAccent}>{searchResults.length}</span>
+                Users Found: <span style={themeStyles.textAccent}>{searchResults.length}</span>
               </h2>
             </div>
             <div className="space-y-3">
@@ -366,12 +403,12 @@ const MiniAppUserSearch: React.FC = () => {
                       )}
                       {result.language_code && (
                         <p className="text-xs mt-1" style={themeStyles.textHint}>
-                          Язык: <span style={themeStyles.textAccent}>{result.language_code.toUpperCase()}</span>
+                          Language: <span style={themeStyles.textAccent}>{result.language_code.toUpperCase()}</span>
                         </p>
                       )}
                       {result.account_creation_date && (
                         <p className="text-xs mt-1" style={themeStyles.textHint}>
-                          Аккаунт создан: <span style={themeStyles.textAccent}>{formatDate(result.account_creation_date)}</span>
+                          Account Created: <span style={themeStyles.textAccent}>{formatDate(result.account_creation_date)}</span>
                         </p>
                       )}
 
@@ -382,7 +419,7 @@ const MiniAppUserSearch: React.FC = () => {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            История изменений ({result.history.length})
+                            Change History ({result.history.length})
                           </h4>
                           <div className="space-y-2 max-h-60 overflow-y-auto">
                             {result.history.map((historyEntry) => (
@@ -403,13 +440,13 @@ const MiniAppUserSearch: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-2" style={themeStyles.textSecondary}>
                                   <span className="truncate">
-                                    {historyEntry.old_value || '(пусто)'}
+                                    {historyEntry.old_value || '(empty)'}
                                   </span>
                                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                                   </svg>
                                   <span className="truncate font-semibold">
-                                    {historyEntry.new_value || '(пусто)'}
+                                    {historyEntry.new_value || '(empty)'}
                                   </span>
                                 </div>
                               </div>
@@ -424,7 +461,7 @@ const MiniAppUserSearch: React.FC = () => {
                           onClick={() => handleSimilarAccountClick(result)}
                           className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-3 py-1 rounded-full font-medium shadow-lg whitespace-nowrap cursor-pointer hover:from-orange-600 hover:to-red-600 transition-all duration-200 transform hover:scale-105 active:scale-95"
                         >
-                          🔄 Похожий
+                          🔄 Similar
                         </button>
                       )}
                       {result.is_premium && (
@@ -445,16 +482,16 @@ const MiniAppUserSearch: React.FC = () => {
           </div>
         )}
 
-        {searchData && searchResults.length === 0 && !isSearching && (
+        {searchQuery && searchResults.length === 0 && !isSearching && (
           <div className="mt-8 text-center py-16">
             <div className="rounded-2xl p-8 max-w-md mx-auto" style={themeStyles.card}>
               <div className="text-6xl mb-4" style={themeStyles.textHint}>🔍</div>
-              <h3 className="text-xl font-semibold mb-3" style={themeStyles.textPrimary}>Пользователи не найдены</h3>
+              <h3 className="text-xl font-semibold mb-3" style={themeStyles.textPrimary}>No Users Found</h3>
               <p className="leading-relaxed" style={themeStyles.textSecondary}>
-                Попробуйте изменить запрос или проверьте правильность написания
+                Enter a username or user ID in the search field and click the search button
               </p>
               <div className="mt-4 text-sm" style={themeStyles.textHint}>
-                💡 Подсказка: используйте ID или @username для поиска
+                💡 Example: @username or 123456789
               </div>
             </div>
           </div>

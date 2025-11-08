@@ -3,8 +3,10 @@ Mini app API router
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
+from app.core.config import settings
 from app.schemas.mini_app import (
     TelegramUserVerifyRequest,
     TelegramUserVerifyResponse,
@@ -52,3 +54,25 @@ async def search_users(
 
     service = MiniAppService(db)
     return await service.search_users(request)
+
+
+@router.get("/user-photo/{user_id}")
+async def get_user_photo(
+    user_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get user profile photo URL"""
+    service = MiniAppService(db)
+    file_path = await service.get_user_profile_photo(user_id)
+    
+    if not file_path:
+        raise HTTPException(
+            status_code=404,
+            detail="User photo not found"
+        )
+    
+    # Construct the full URL to the photo
+    photo_url = f"https://api.telegram.org/file/bot{settings.TELEGRAM_BOT_TOKEN}/{file_path}"
+    
+    # Return redirect to the photo URL
+    return RedirectResponse(url=photo_url)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { TelegramWebApp } from '../types/telegram-web-app'
 
 export interface TelegramUserData {
   id: number
@@ -8,6 +9,7 @@ export interface TelegramUserData {
   language_code?: string
   is_premium?: boolean
   is_bot?: boolean
+  photo_url?: string
 }
 
 export interface TelegramThemeParams {
@@ -41,12 +43,27 @@ export const useTelegramWebApp = () => {
     themeParams: {}
   })
 
-  const updateTheme = (webApp: any) => {
+  const updateTheme = (webApp: TelegramWebApp) => {
     const newTheme: TelegramThemeData = {
       colorScheme: webApp.colorScheme || 'light',
       themeParams: webApp.themeParams || {}
     }
     setTheme(newTheme)
+  }
+
+  const fetchUserPhoto = async (userId: number): Promise<string | null> => {
+    try {
+      const response = await fetch(`/api/mini-app/user-photo/${userId}`)
+      
+      if (response.ok) {
+        // The endpoint returns a redirect, so we get the final URL
+        return response.url
+      }
+      return null
+    } catch (error) {
+      console.error('Error fetching user photo:', error)
+      return null
+    }
   }
 
   useEffect(() => {
@@ -57,7 +74,7 @@ export const useTelegramWebApp = () => {
         
         // Check if Telegram Web App is available
         if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-          const webApp = window.Telegram.WebApp
+          const webApp: TelegramWebApp = window.Telegram.WebApp
           console.log('[TelegramWebApp] WebApp found:', webApp)
           console.log('[TelegramWebApp] initData:', webApp.initData)
           console.log('[TelegramWebApp] initDataUnsafe:', webApp.initDataUnsafe)
@@ -76,8 +93,18 @@ export const useTelegramWebApp = () => {
 
           // Get user data
           if (webApp.initDataUnsafe?.user) {
-            setUser(webApp.initDataUnsafe.user)
-            console.log('[TelegramWebApp] User found:', webApp.initDataUnsafe.user)
+            const userData = webApp.initDataUnsafe.user
+            setUser(userData)
+            console.log('[TelegramWebApp] User found:', userData)
+            
+            // Fetch user photo from backend
+            if (userData.id) {
+              fetchUserPhoto(userData.id).then(photoUrl => {
+                if (photoUrl) {
+                  setUser(prev => prev ? { ...prev, photo_url: photoUrl } : prev)
+                }
+              })
+            }
           } else {
             console.error('[TelegramWebApp] No user in initDataUnsafe')
             setError('Пользовательские данные недоступны')

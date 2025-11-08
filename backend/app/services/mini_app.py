@@ -5,10 +5,12 @@ Mini app service with business logic
 import hashlib
 import hmac
 import json
+import secrets
 from urllib.parse import unquote, parse_qs
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, func
 from typing import List, Optional, Dict, Any
+from aiogram import Bot
 from app.models.users import User
 from app.models.telegram_users import TelegramUser
 from app.models.telegram_user_history import TelegramUserHistory
@@ -28,6 +30,13 @@ class MiniAppService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    def _generate_session_token(self, user_id: int) -> str:
+        """Generate a unique session token for the user"""
+        # Create token from user_id, timestamp and random data
+        random_data = secrets.token_hex(32)
+        data = f"{user_id}:{random_data}"
+        return hashlib.sha256(data.encode()).hexdigest()
 
     def _verify_telegram_init_data(self, init_data: str) -> Optional[Dict[str, Any]]:
         """
@@ -106,16 +115,16 @@ class MiniAppService:
         """
         from collections import defaultdict
         
-        # Group by account_creation_date (если одинаковая - подозрительно)
+        # Group by account_creation_date (if same date - suspicious)
         groups = defaultdict(list)
         for user in users:
-            # Группируем по дате создания аккаунта
+            # Group by account creation date
             key = str(user.account_creation_date) if user.account_creation_date else 'no_date'
             groups[key].append(user)
         
         processed_users = []
         for group_key, group_users in groups.items():
-            # Если только один пользователь в группе или нет даты, добавляем как есть
+            # If only one user in group or no date, add as is
             if len(group_users) == 1 or group_key == 'no_date':
                 for user in group_users:
                     processed_users.append({
@@ -123,7 +132,7 @@ class MiniAppService:
                         'masked': False
                     })
             else:
-                # Если несколько пользователей с одинаковой датой создания - маскируем всех кроме первого
+                # If multiple users with same creation date - mask all except first
                 processed_users.append({
                     'user': group_users[0],
                     'masked': False
@@ -178,10 +187,14 @@ class MiniAppService:
                 await self.db.commit()
                 await self.db.refresh(db_user)
 
+                # Generate session token
+                session_token = self._generate_session_token(telegram_user_id)
+
                 return TelegramUserVerifyResponse(
                     verified=True,
                     telegram_user_id=telegram_user_id,
                     message="User verified and updated successfully",
+                    session_token=session_token,
                     user_data={
                         "id": db_user.id,
                         "username": db_user.username,
@@ -207,10 +220,14 @@ class MiniAppService:
                 await self.db.commit()
                 await self.db.refresh(new_user)
 
+                # Generate session token
+                session_token = self._generate_session_token(telegram_user_id)
+
                 return TelegramUserVerifyResponse(
                     verified=True,
                     telegram_user_id=telegram_user_id,
                     message="New user created successfully",
+                    session_token=session_token,
                     user_data={
                         "id": new_user.id,
                         "username": new_user.username,
@@ -335,3 +352,37 @@ class MiniAppService:
                 limit=request.limit,
                 offset=request.offset
             )
+
+    async def get_user_profile_photo(self, user_id: int) -> Optional[str]:
+        """
+        Get user profile photo URL from Telegram.
+        Returns the file_id of the profile photo or None if not available.
+        """
+        try:
+            from aiogram import Bot
+            bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+            
+            # Get user profile photos
+            photos = await bot.get_user_profile_photos(user_id=user_id, limit=1)
+            
+            if photos.total_count > 0 and photos.photos:
+                # Get the first (most recent) photo
+                photo_sizes = photos.photos[0]
+                if photo_sizes:
+                    # Get the largest photo size
+                    largest_photo = max(photo_sizes, key=lambda p: p.width * p.height)
+                    # Get file info to get the file_path
+                    file_info = await bot.get_file(largest_photo.file_id)
+                    
+                    await bot.session.close()
+                    
+                    # Return the file_path which can be used to construct download URL
+                    # Format: https://api.telegram.org/file/bot<token>/<file_path>
+                    return file_info.file_path
+            
+            await bot.session.close()
+            return None
+            
+        except Exception as e:
+            print(f"Error getting user profile photo: {e}")
+            return None

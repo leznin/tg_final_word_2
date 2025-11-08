@@ -20,6 +20,7 @@ export interface TelegramUserVerifyResponse {
   verified: boolean
   telegram_user_id: number
   message: string
+  session_token?: string  // Session token for maintaining user session
   user_data?: {
     id: number
     username?: string
@@ -62,58 +63,4 @@ export interface UserSearchResponse {
   total: number
   limit: number
   offset: number
-}
-
-// Telegram Web App types
-declare global {
-  interface Window {
-    Telegram: {
-      WebApp: {
-        initData: string
-        initDataUnsafe: {
-          user?: {
-            id: number
-            first_name?: string
-            last_name?: string
-            username?: string
-            language_code?: string
-            is_premium?: boolean
-            is_bot?: boolean
-          }
-          chat?: any
-          query_id?: string
-        }
-        ready(): void
-        close(): void
-        expand(): void
-        MainButton: {
-          text: string
-          show(): void
-          hide(): void
-          onClick(callback: () => void): void
-          offClick(callback: () => void): void
-        }
-        BackButton: {
-          show(): void
-          hide(): void
-          onClick(callback: () => void): void
-          offClick(callback: () => void): void
-        }
-        HapticFeedback: {
-          impactOccurred(style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'): void
-          notificationOccurred(type: 'error' | 'success' | 'warning'): void
-          selectionChanged(): void
-        }
-        colorScheme: 'light' | 'dark'
-        themeParams: {
-          bg_color?: string
-          text_color?: string
-          hint_color?: string
-          link_color?: string
-          button_color?: string
-          button_text_color?: string
-        }
-      }
-    }
-  }
 }

@@ -18,6 +18,7 @@ class TelegramUserVerifyResponse(BaseModel):
     telegram_user_id: int
     message: str
     user_data: Optional[dict] = None
+    session_token: Optional[str] = None  # Session token for frontend
 
 
 class UserSearchRequest(BaseModel):

@@ -52,23 +52,34 @@ export const useTelegramWebApp = () => {
   useEffect(() => {
     const initializeTelegramWebApp = () => {
       try {
+        console.log('[TelegramWebApp] Starting initialization...')
+        console.log('[TelegramWebApp] window.Telegram:', window.Telegram)
+        
         // Check if Telegram Web App is available
         if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
           const webApp = window.Telegram.WebApp
+          console.log('[TelegramWebApp] WebApp found:', webApp)
+          console.log('[TelegramWebApp] initData:', webApp.initData)
+          console.log('[TelegramWebApp] initDataUnsafe:', webApp.initDataUnsafe)
 
           // Initialize the Web App
           webApp.ready()
+          console.log('[TelegramWebApp] Called ready()')
 
           // Expand the Web App to full height
           webApp.expand()
+          console.log('[TelegramWebApp] Called expand()')
 
           // Store initData for backend verification
           setInitData(webApp.initData)
+          console.log('[TelegramWebApp] Set initData:', webApp.initData ? 'present' : 'empty')
 
           // Get user data
           if (webApp.initDataUnsafe?.user) {
             setUser(webApp.initDataUnsafe.user)
+            console.log('[TelegramWebApp] User found:', webApp.initDataUnsafe.user)
           } else {
+            console.error('[TelegramWebApp] No user in initDataUnsafe')
             setError('Пользовательские данные недоступны')
           }
 
@@ -81,7 +92,11 @@ export const useTelegramWebApp = () => {
           }
 
           setIsReady(true)
+          console.log('[TelegramWebApp] Initialization complete!')
         } else {
+          console.error('[TelegramWebApp] Telegram Web App not available')
+          console.error('[TelegramWebApp] window:', typeof window)
+          console.error('[TelegramWebApp] window.Telegram:', window.Telegram)
           setError('Telegram Web App не инициализирован')
         }
       } catch (err) {

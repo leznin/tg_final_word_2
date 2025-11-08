@@ -22,32 +22,44 @@ const MiniAppUserSearch: React.FC = () => {
 
   // Verify user on component mount
   useEffect(() => {
+    console.log('[MiniAppUserSearch] useEffect triggered')
+    console.log('[MiniAppUserSearch] isReady:', isReady)
+    console.log('[MiniAppUserSearch] initData:', initData ? 'present' : 'empty')
+    console.log('[MiniAppUserSearch] isVerified:', isVerified)
+    console.log('[MiniAppUserSearch] user:', user)
+    
     if (isReady && initData && !isVerified) {
+      console.log('[MiniAppUserSearch] Calling verifyUser()')
       verifyUser()
     }
   }, [isReady, initData, isVerified])
 
   const verifyUser = async () => {
+    console.log('[MiniAppUserSearch] verifyUser() called')
     if (!initData) {
-      console.error('No initData available for verification')
+      console.error('[MiniAppUserSearch] No initData available for verification')
       return
     }
 
     try {
+      console.log('[MiniAppUserSearch] Sending verification request...')
       const verifyRequest = {
         init_data: initData
       }
 
       const response = await verifyUserAsync(verifyRequest)
+      console.log('[MiniAppUserSearch] Verification response:', response)
+      
       if (response.verified) {
         setIsVerified(true)
         hapticFeedback.notification('success')
+        console.log('[MiniAppUserSearch] Verification successful!')
       } else {
-        console.error('User verification failed:', response.message)
+        console.error('[MiniAppUserSearch] User verification failed:', response.message)
         hapticFeedback.notification('error')
       }
     } catch (error) {
-      console.error('Verification error:', error)
+      console.error('[MiniAppUserSearch] Verification error:', error)
       hapticFeedback.notification('error')
     }
   }
@@ -56,7 +68,7 @@ const MiniAppUserSearch: React.FC = () => {
     e.preventDefault()
 
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
-      setSearchError('Enter at least 2 characters to search')
+      setSearchError('Введите минимум 2 символа для поиска')
       hapticFeedback.notification('error')
       return
     }
@@ -75,7 +87,7 @@ const MiniAppUserSearch: React.FC = () => {
       hapticFeedback.notification('success')
     } catch (error) {
       console.error('Search error:', error)
-      setSearchError('Search error. Please try again.')
+      setSearchError('Ошибка поиска. Попробуйте снова.')
       setSearchResults([])
       hapticFeedback.notification('error')
     }
@@ -108,12 +120,57 @@ const MiniAppUserSearch: React.FC = () => {
     }
   }
 
-  const getUserDisplayName = (user: UserSearchResult) => {
-    if (user.username) {
-      return `@${user.username}`
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleString('ru-RU', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getFieldNameDisplay = (fieldName: string) => {
+    const fieldNames: Record<string, string> = {
+      'first_name': 'Имя',
+      'last_name': 'Фамилия',
+      'username': 'Username'
     }
-    const nameParts = [user.first_name, user.last_name].filter(Boolean)
-    return nameParts.length > 0 ? nameParts.join(' ') : 'No name'
+    return fieldNames[fieldName] || fieldName
+  }
+
+  const isMaskedAccount = (user: UserSearchResult) => {
+    // Check if name or lastname contains asterisks (masked account)
+    const hasAsterisks = (str: string | null | undefined) => str && str.includes('*')
+    return hasAsterisks(user.first_name) || hasAsterisks(user.last_name)
+  }
+
+  const handleSimilarAccountClick = async (result: UserSearchResult) => {
+    // Get real ID from masked account
+    const realId = result.real_telegram_user_id || result.telegram_user_id
+    if (!realId) return
+
+    // Set search query to ID
+    setSearchQuery(String(realId))
+    hapticFeedback.selection()
+
+    // Perform search
+    try {
+      const response = await searchUsersAsync({
+        query: String(realId),
+        limit: 20,
+        offset: 0
+      })
+
+      setSearchResults(response.results)
+      hapticFeedback.notification('success')
+    } catch (error) {
+      console.error('Search error:', error)
+      setSearchError('Ошибка поиска. Попробуйте снова.')
+      setSearchResults([])
+      hapticFeedback.notification('error')
+    }
   }
 
   if (!isReady) {
@@ -173,10 +230,10 @@ const MiniAppUserSearch: React.FC = () => {
       <div className="backdrop-blur-sm shadow-lg" style={themeStyles.header}>
         <div className="px-4 py-4">
           <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            User Search
+            Поиск пользователей
           </h1>
           <p className="text-sm mt-2" style={themeStyles.textSecondary}>
-            Hello, {user.first_name || user.username || 'User'}! 👋
+            Привет, {user.first_name || user.username || 'User'}! 👋
           </p>
         </div>
       </div>
@@ -190,7 +247,7 @@ const MiniAppUserSearch: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Enter username or @username"
+              placeholder="Введите ID или @username"
               className="w-full px-4 py-4 pr-20 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-300 adaptive-input"
               style={{
                 ...themeStyles.input,
@@ -255,14 +312,14 @@ const MiniAppUserSearch: React.FC = () => {
               {isSearching ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white flex-shrink-0"></div>
-                  <span>Searching...</span>
+                  <span>Поиск...</span>
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span>Find Users</span>
+                  <span>Найти пользователей</span>
                 </>
               )}
             </div>
@@ -275,33 +332,101 @@ const MiniAppUserSearch: React.FC = () => {
             <div className="flex items-center space-x-3 mb-8">
               <div className="h-8 w-1 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full flex-shrink-0"></div>
               <h2 className="text-lg font-bold" style={themeStyles.textPrimary}>
-                Users found: <span style={themeStyles.textAccent}>{searchResults.length}</span>
+                Найдено пользователей: <span style={themeStyles.textAccent}>{searchResults.length}</span>
               </h2>
             </div>
             <div className="space-y-3">
               {searchResults.map((result) => (
                 <div
-                  key={result.id}
+                  key={result.telegram_user_id}
                   className="rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300"
                   style={themeStyles.card}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg truncate" style={themeStyles.textPrimary}>
-                        {getUserDisplayName(result)}
-                      </h3>
-                      {result.telegram_id && (
+                      {/* Имя и фамилия */}
+                      {(result.first_name || result.last_name) && (
+                        <h3 className="font-semibold text-lg truncate" style={themeStyles.textPrimary}>
+                          {[result.first_name, result.last_name].filter(Boolean).join(' ')}
+                        </h3>
+                      )}
+                      
+                      {/* Username */}
+                      {result.username && (
+                        <p className="text-sm mt-1" style={themeStyles.textSecondary}>
+                          @{result.username}
+                        </p>
+                      )}
+                      
+                      {/* ID */}
+                      {result.telegram_user_id && (
                         <p className="text-sm mt-2" style={themeStyles.textSecondary}>
-                          ID: <span style={themeStyles.textAccent}>{result.telegram_id}</span>
+                          ID: <span style={themeStyles.textAccent}>{result.telegram_user_id}</span>
                         </p>
                       )}
                       {result.language_code && (
                         <p className="text-xs mt-1" style={themeStyles.textHint}>
-                          Language: <span style={themeStyles.textAccent}>{result.language_code.toUpperCase()}</span>
+                          Язык: <span style={themeStyles.textAccent}>{result.language_code.toUpperCase()}</span>
                         </p>
+                      )}
+                      {result.account_creation_date && (
+                        <p className="text-xs mt-1" style={themeStyles.textHint}>
+                          Аккаунт создан: <span style={themeStyles.textAccent}>{formatDate(result.account_creation_date)}</span>
+                        </p>
+                      )}
+
+                      {/* History Section */}
+                      {result.history && result.history.length > 0 && (
+                        <div className="mt-4 pt-4 border-t" style={{ borderColor: themeStyles.textHint.color }}>
+                          <h4 className="text-sm font-semibold mb-3 flex items-center gap-2" style={themeStyles.textPrimary}>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            История изменений ({result.history.length})
+                          </h4>
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {result.history.map((historyEntry) => (
+                              <div
+                                key={historyEntry.id}
+                                className="text-xs p-3 rounded-lg"
+                                style={{ 
+                                  backgroundColor: theme.colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'
+                                }}
+                              >
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <span className="font-semibold" style={themeStyles.textAccent}>
+                                    {getFieldNameDisplay(historyEntry.field_name)}
+                                  </span>
+                                  <span style={themeStyles.textHint}>
+                                    {formatDate(historyEntry.changed_at)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2" style={themeStyles.textSecondary}>
+                                  <span className="truncate">
+                                    {historyEntry.old_value || '(пусто)'}
+                                  </span>
+                                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                  </svg>
+                                  <span className="truncate font-semibold">
+                                    {historyEntry.new_value || '(пусто)'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      {isMaskedAccount(result) && (
+                        <button
+                          onClick={() => handleSimilarAccountClick(result)}
+                          className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-3 py-1 rounded-full font-medium shadow-lg whitespace-nowrap cursor-pointer hover:from-orange-600 hover:to-red-600 transition-all duration-200 transform hover:scale-105 active:scale-95"
+                        >
+                          🔄 Похожий
+                        </button>
+                      )}
                       {result.is_premium && (
                         <span className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs px-3 py-1 rounded-full font-medium shadow-lg whitespace-nowrap">
                           ⭐ Premium
@@ -324,12 +449,12 @@ const MiniAppUserSearch: React.FC = () => {
           <div className="mt-8 text-center py-16">
             <div className="rounded-2xl p-8 max-w-md mx-auto" style={themeStyles.card}>
               <div className="text-6xl mb-4" style={themeStyles.textHint}>🔍</div>
-              <h3 className="text-xl font-semibold mb-3" style={themeStyles.textPrimary}>No users found</h3>
+              <h3 className="text-xl font-semibold mb-3" style={themeStyles.textPrimary}>Пользователи не найдены</h3>
               <p className="leading-relaxed" style={themeStyles.textSecondary}>
-                Try changing your query or check the spelling
+                Попробуйте изменить запрос или проверьте правильность написания
               </p>
               <div className="mt-4 text-sm" style={themeStyles.textHint}>
-                💡 Tip: use @username for precise search
+                💡 Подсказка: используйте ID или @username для поиска
               </div>
             </div>
           </div>

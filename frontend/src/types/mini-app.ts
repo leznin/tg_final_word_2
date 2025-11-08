@@ -34,17 +34,27 @@ export interface UserSearchRequest {
   offset?: number
 }
 
-export interface UserSearchResult {
+export interface UserHistoryEntry {
   id: number
-  telegram_id?: number
-  username?: string
-  first_name?: string
-  last_name?: string
-  language_code?: string
+  field_name: string
+  old_value?: string | null
+  new_value?: string | null
+  changed_at: string
+}
+
+export interface UserSearchResult {
+  telegram_user_id: number | string  // Can be number or masked string
+  real_telegram_user_id?: number | null  // Real ID for masked accounts
+  username?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  language_code?: string | null
   is_premium: boolean
   is_bot: boolean
+  account_creation_date?: string | null
   created_at: string
   updated_at: string
+  history: UserHistoryEntry[]
 }
 
 export interface UserSearchResponse {

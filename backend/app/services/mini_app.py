@@ -11,12 +11,14 @@ from sqlalchemy import select, or_, func
 from typing import List, Optional, Dict, Any
 from app.models.users import User
 from app.models.telegram_users import TelegramUser
+from app.models.telegram_user_history import TelegramUserHistory
 from app.schemas.mini_app import (
     TelegramUserVerifyRequest,
     TelegramUserVerifyResponse,
     UserSearchRequest,
     UserSearchResult,
-    UserSearchResponse
+    UserSearchResponse,
+    UserHistoryEntry
 )
 from app.core.config import settings
 
@@ -82,6 +84,59 @@ class MiniAppService:
         except Exception as e:
             print(f"Error verifying Telegram initData: {e}")
             return None
+
+    def _mask_string(self, text: str, visible_chars: int = 2) -> str:
+        """Mask string with asterisks, showing only first few characters"""
+        if not text or len(text) <= visible_chars:
+            return text
+        return text[:visible_chars] + '*' * (len(text) - visible_chars)
+
+    def _mask_id(self, user_id: int) -> str:
+        """Mask user ID, showing only last 4 digits"""
+        id_str = str(user_id)
+        if len(id_str) <= 4:
+            return id_str
+        return '*' * (len(id_str) - 4) + id_str[-4:]
+
+    def _group_similar_users(self, users: List[TelegramUser]) -> List[Dict[str, Any]]:
+        """
+        Group users with similar creation dates.
+        Keep first user with full data, mask others' data.
+        Returns list of dicts with user data and mask info.
+        """
+        from collections import defaultdict
+        
+        # Group by account_creation_date (если одинаковая - подозрительно)
+        groups = defaultdict(list)
+        for user in users:
+            # Группируем по дате создания аккаунта
+            key = str(user.account_creation_date) if user.account_creation_date else 'no_date'
+            groups[key].append(user)
+        
+        processed_users = []
+        for group_key, group_users in groups.items():
+            # Если только один пользователь в группе или нет даты, добавляем как есть
+            if len(group_users) == 1 or group_key == 'no_date':
+                for user in group_users:
+                    processed_users.append({
+                        'user': user,
+                        'masked': False
+                    })
+            else:
+                # Если несколько пользователей с одинаковой датой создания - маскируем всех кроме первого
+                processed_users.append({
+                    'user': group_users[0],
+                    'masked': False
+                })
+                
+                # Mark others for masking
+                for similar_user in group_users[1:]:
+                    processed_users.append({
+                        'user': similar_user,
+                        'masked': True
+                    })
+        
+        return processed_users
 
     async def verify_telegram_user(self, request: TelegramUserVerifyRequest) -> TelegramUserVerifyResponse:
         """Verify and potentially create/update Telegram user using initData"""
@@ -172,19 +227,23 @@ class MiniAppService:
             )
 
     async def search_users(self, request: UserSearchRequest) -> UserSearchResponse:
-        """Search users by username, first name, or last name"""
+        """Search users by ID or username only"""
         try:
             query_lower = request.query.lower().strip()
 
-            # Build search conditions
-            search_conditions = [
-                func.lower(User.username).contains(query_lower),
-                func.lower(User.first_name).contains(query_lower),
-                func.lower(User.last_name).contains(query_lower)
-            ]
+            # Build search conditions for TelegramUser (only ID and username)
+            search_conditions = []
 
-            # Execute search query
-            search_query = select(User).where(
+            # Check if query is a number (searching by ID)
+            if query_lower.isdigit():
+                telegram_id = int(query_lower)
+                search_conditions.append(TelegramUser.telegram_user_id == telegram_id)
+            
+            # Always search by username
+            search_conditions.append(func.lower(TelegramUser.username).contains(query_lower))
+
+            # Execute search query on TelegramUser
+            search_query = select(TelegramUser).where(
                 or_(*search_conditions)
             ).limit(request.limit).offset(request.offset)
 
@@ -192,26 +251,72 @@ class MiniAppService:
             users = result.scalars().all()
 
             # Get total count
-            count_query = select(func.count()).select_from(User).where(
+            count_query = select(func.count()).select_from(TelegramUser).where(
                 or_(*search_conditions)
             )
             total_result = await self.db.execute(count_query)
             total = total_result.scalar()
 
-            # Convert to response format
+            # Group similar users and mask duplicates
+            user_data_list = self._group_similar_users(list(users))
+
+            # Convert to response format with history
             results = []
-            for user in users:
+            for user_data in user_data_list:
+                user = user_data['user']
+                is_masked = user_data['masked']
+                
+                # Get history for this user
+                history_query = select(TelegramUserHistory).where(
+                    TelegramUserHistory.telegram_user_id == user.telegram_user_id
+                ).order_by(TelegramUserHistory.changed_at.desc())
+                
+                history_result = await self.db.execute(history_query)
+                history_records = history_result.scalars().all()
+
+                # Convert history to schema format
+                history_entries = [
+                    UserHistoryEntry(
+                        id=record.id,
+                        field_name=record.field_name,
+                        old_value=record.old_value,
+                        new_value=record.new_value,
+                        changed_at=record.changed_at
+                    )
+                    for record in history_records
+                ]
+
+                # Apply masking if needed
+                first_name = user.first_name
+                last_name = user.last_name
+                username = user.username
+                telegram_user_id = user.telegram_user_id
+                real_telegram_user_id = None
+                
+                if is_masked:
+                    if first_name:
+                        first_name = self._mask_string(first_name, 2)
+                    if last_name:
+                        last_name = self._mask_string(last_name, 2)
+                    if username:
+                        username = self._mask_string(username, 3)
+                    # Mask ID - show only last 4 digits, but keep real ID
+                    real_telegram_user_id = user.telegram_user_id
+                    telegram_user_id = self._mask_id(user.telegram_user_id)
+
                 results.append(UserSearchResult(
-                    id=user.id,
-                    telegram_id=user.telegram_id,
-                    username=user.username,
-                    first_name=user.first_name,
-                    last_name=user.last_name,
+                    telegram_user_id=telegram_user_id,
+                    real_telegram_user_id=real_telegram_user_id,
+                    username=username,
+                    first_name=first_name,
+                    last_name=last_name,
                     language_code=user.language_code,
-                    is_premium=user.is_premium,
-                    is_bot=user.is_bot,
+                    is_premium=user.is_premium or False,
+                    is_bot=user.is_bot or False,
+                    account_creation_date=user.account_creation_date,
                     created_at=user.created_at,
-                    updated_at=user.updated_at
+                    updated_at=user.updated_at,
+                    history=history_entries
                 ))
 
             return UserSearchResponse(
@@ -222,6 +327,7 @@ class MiniAppService:
             )
 
         except Exception as e:
+            print(f"Search users error: {e}")
             # Return empty results on error
             return UserSearchResponse(
                 results=[],

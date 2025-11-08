@@ -15,7 +15,6 @@ import { Broadcast } from './pages/Broadcast';
 import { UserVerification } from './pages/UserVerification';
 import { Login } from './pages/Login';
 import { AdminUsers } from './pages/AdminUsers';
-import MiniAppUserSearch from './pages/MiniAppUserSearch';
 import { UserRole } from './types';
 
 const queryClient = new QueryClient({
@@ -38,7 +37,6 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/mini-app/user-search" element={<MiniAppUserSearch />} />
           <Route
             path="/*"
             element={

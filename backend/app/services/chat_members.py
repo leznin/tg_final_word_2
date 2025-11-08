@@ -56,6 +56,7 @@ class ChatMemberService:
     async def get_chat_members_with_search(self, chat_id: int, skip: int = 0, limit: int = 30, search: str = "") -> List[ChatMember]:
         """Get members of a specific chat with search functionality"""
         from app.models.telegram_users import TelegramUser
+        from sqlalchemy import Text, cast
 
         query = select(ChatMember).join(TelegramUser).options(selectinload(ChatMember.telegram_user)).where(ChatMember.chat_id == chat_id)
 
@@ -65,7 +66,7 @@ class ChatMemberService:
                 TelegramUser.first_name.ilike(f"%{search}%"),
                 TelegramUser.last_name.ilike(f"%{search}%"),
                 TelegramUser.username.ilike(f"%{search}%"),
-                func.cast(ChatMember.telegram_user_id, func.String).ilike(f"%{search}%")
+                cast(ChatMember.telegram_user_id, Text).ilike(f"%{search}%")
             )
             query = query.where(search_filter)
 

@@ -65,6 +65,7 @@ async def get_chat_members(
 
         # Get total count for pagination
         from app.models.telegram_users import TelegramUser
+        from sqlalchemy import Text, cast
         
         if search:
             # For search, join with TelegramUser table for count
@@ -73,7 +74,7 @@ async def get_chat_members(
                 TelegramUser.first_name.ilike(f"%{search}%"),
                 TelegramUser.last_name.ilike(f"%{search}%"),
                 TelegramUser.username.ilike(f"%{search}%"),
-                func.cast(ChatMember.telegram_user_id, func.String).ilike(f"%{search}%")
+                cast(ChatMember.telegram_user_id, Text).ilike(f"%{search}%")
             )
             total_query = total_query.where(search_filter)
         else:

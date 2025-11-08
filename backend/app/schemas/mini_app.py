@@ -3,7 +3,7 @@ Mini app Pydantic schemas
 """
 
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
 
 
@@ -27,18 +27,29 @@ class UserSearchRequest(BaseModel):
     offset: Optional[int] = 0
 
 
+class UserHistoryEntry(BaseModel):
+    """Schema for user history entry"""
+    id: int
+    field_name: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    changed_at: datetime
+
+
 class UserSearchResult(BaseModel):
     """Schema for individual user search result"""
-    id: int
-    telegram_id: Optional[int] = None
+    telegram_user_id: Union[int, str]  # Can be int or masked string
+    real_telegram_user_id: Optional[int] = None  # Real ID for masked accounts
     username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     language_code: Optional[str] = None
     is_premium: bool = False
     is_bot: bool = False
+    account_creation_date: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    history: List[UserHistoryEntry] = []
 
 
 class UserSearchResponse(BaseModel):

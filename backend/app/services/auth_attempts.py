@@ -172,3 +172,45 @@ class AuthAttemptsService:
 
         await self.db.commit()
         return deleted_count
+
+    async def reset_blocked_attempts(self, minutes: int = 20) -> int:
+        """
+        Reset authentication attempts for users blocked longer than specified minutes
+        This allows users to try again after cooldown period
+        
+        Args:
+            minutes: Number of minutes after which to reset attempts (default: 20)
+            
+        Returns:
+            Number of records reset
+        """
+        cutoff_time = datetime.utcnow() - timedelta(minutes=minutes)
+        
+        # Find all blocked attempts older than cutoff time
+        query = select(AuthAttempt).where(
+            and_(
+                AuthAttempt.blocked == True,
+                AuthAttempt.last_attempt_at < cutoff_time
+            )
+        )
+        
+        result = await self.db.execute(query)
+        blocked_attempts = result.scalars().all()
+        
+        reset_count = 0
+        for attempt in blocked_attempts:
+            # Reset the attempt counters and blocked status
+            attempt.blocked = False
+            attempt.failed_count = 0
+            attempt.attempt_count = 0
+            attempt.success_count = 0
+            attempt.block_reason = None
+            attempt.blocked_until = None
+            reset_count += 1
+        
+        await self.db.commit()
+        
+        if reset_count > 0:
+            print(f"[AUTH] Reset {reset_count} blocked authentication attempts after {minutes} minutes cooldown")
+        
+        return reset_count

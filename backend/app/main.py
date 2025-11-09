@@ -30,6 +30,9 @@ verification_task = None
 # Global chat posts task reference
 chat_posts_task = None
 
+# Global auth attempts reset task reference
+auth_reset_task = None
+
 
 def set_telegram_bot(bot_instance):
     """Set telegram bot instance"""
@@ -178,6 +181,27 @@ async def process_chat_posts_scheduled_actions():
         await asyncio.sleep(60)
 
 
+async def reset_blocked_auth_attempts():
+    """Background task to reset blocked authentication attempts every 20 minutes"""
+    while True:
+        try:
+            # Get database session
+            async with async_session() as db:
+                from app.services.auth_attempts import AuthAttemptsService
+                
+                auth_service = AuthAttemptsService(db)
+                reset_count = await auth_service.reset_blocked_attempts(minutes=20)
+                
+                if reset_count > 0:
+                    print(f"[AUTH_RESET] Reset {reset_count} blocked authentication attempts")
+                
+        except Exception as e:
+            print(f"Error in auth attempts reset task: {e}")
+        
+        # Wait 20 minutes before next reset (1200 seconds)
+        await asyncio.sleep(1200)
+
+
 async def start_verification_task():
     """Start the background verification task"""
     global verification_task
@@ -235,6 +259,25 @@ async def stop_cleanup_task():
         print("Stopped message cleanup task")
 
 
+async def start_auth_reset_task():
+    """Start the background auth attempts reset task"""
+    global auth_reset_task
+    auth_reset_task = asyncio.create_task(reset_blocked_auth_attempts())
+    print("Started auth attempts reset task (every 20 minutes)")
+
+
+async def stop_auth_reset_task():
+    """Stop the background auth attempts reset task"""
+    global auth_reset_task
+    if auth_reset_task:
+        auth_reset_task.cancel()
+        try:
+            await auth_reset_task
+        except asyncio.CancelledError:
+            pass
+        print("Stopped auth attempts reset task")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
@@ -254,12 +297,16 @@ async def lifespan(app: FastAPI):
     
     # Start background chat posts task
     await start_chat_posts_task()
+    
+    # Start background auth attempts reset task
+    await start_auth_reset_task()
 
     yield
     # Shutdown
     await stop_cleanup_task()
     await stop_verification_task()
     await stop_chat_posts_task()
+    await stop_auth_reset_task()
     await bot_instance.stop()
 
 

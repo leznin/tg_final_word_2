@@ -142,7 +142,7 @@ class UserVerificationService:
 
             # Update data if requested and changes detected
             is_updated = False
-            if auto_update and (has_changes or not current_user):
+            if auto_update:
                 # Prepare user data for update
                 telegram_user_data = TelegramUserData(
                     telegram_user_id=telegram_user.id,
@@ -164,6 +164,34 @@ class UserVerificationService:
                 # This will automatically record history changes
                 await self.telegram_user_service.create_or_update_user_from_telegram(telegram_user_data)
                 is_updated = True
+                
+                # Add user to chat_members if not already there and status is valid
+                if chat_db_id and user_status in ['member', 'administrator', 'creator']:
+                    # Check if chat_member record exists
+                    member_query = select(ChatMember).where(
+                        and_(
+                            ChatMember.chat_id == chat_db_id,
+                            ChatMember.telegram_user_id == telegram_user_id
+                        )
+                    )
+                    member_result = await self.db.execute(member_query)
+                    existing_member = member_result.scalar_one_or_none()
+                    
+                    if existing_member:
+                        # Update existing member status to active
+                        existing_member.status = 'active'
+                        existing_member.left_at = None  # Clear left_at if member is back
+                    else:
+                        # Create new chat_member record
+                        new_member = ChatMember(
+                            chat_id=chat_db_id,
+                            telegram_user_id=telegram_user_id,
+                            status='active',
+                            joined_at=datetime.utcnow()
+                        )
+                        self.db.add(new_member)
+                    
+                    await self.db.commit()
 
             return UserVerificationResult(
                 telegram_user_id=telegram_user_id,
@@ -220,59 +248,103 @@ class UserVerificationService:
         results = []
 
         try:
-            # Build query to get active chat members
-            query = (
-                select(ChatMember, Chat, TelegramUser)
-                .join(Chat, ChatMember.chat_id == Chat.id)
-                .join(TelegramUser, ChatMember.telegram_user_id == TelegramUser.telegram_user_id)
-                .where(ChatMember.status == 'active')
-            )
+            # If specific telegram_user_ids are provided, check them directly in the specified chat
+            if telegram_user_ids and chat_id:
+                # Get chat information
+                chat_query = select(Chat).where(Chat.id == chat_id)
+                chat_result = await self.db.execute(chat_query)
+                chat = chat_result.scalar_one_or_none()
+                
+                if not chat:
+                    raise ValueError(f"Chat with id {chat_id} not found")
+                
+                # Set total users
+                self.total_users = len(telegram_user_ids)
+                
+                # Verify each user directly
+                for idx, telegram_user_id in enumerate(telegram_user_ids, 1):
+                    # Verify user in this specific chat
+                    verification_result = await self.verify_user_info(
+                        telegram_user_id=telegram_user_id,
+                        telegram_chat_id=chat.telegram_chat_id,
+                        auto_update=auto_update
+                    )
+                    results.append(verification_result)
+                    
+                    # Update progress tracking
+                    self.current_progress = idx
+                    self.checked_users = idx
+                    if verification_result.is_updated:
+                        self.updated_users += 1
+                    if verification_result.has_changes:
+                        self.users_with_changes += 1
+                    if verification_result.error:
+                        self.users_with_errors += 1
+                    
+                    # Calculate estimated time remaining
+                    if idx > 0:
+                        elapsed = (datetime.utcnow() - started_at).total_seconds()
+                        avg_time_per_user = elapsed / idx
+                        remaining_users = self.total_users - idx
+                        self.estimated_time_remaining = remaining_users * avg_time_per_user
 
-            # Filter by chat if specified
-            if chat_id:
-                query = query.where(ChatMember.chat_id == chat_id)
-
-            # Filter by specific user IDs if specified
-            if telegram_user_ids:
-                query = query.where(ChatMember.telegram_user_id.in_(telegram_user_ids))
-
-            # Execute query
-            result = await self.db.execute(query)
-            members_data = result.all()
-            
-            # Set total users
-            self.total_users = len(members_data)
-
-            # Verify each user
-            for idx, (member, chat, telegram_user) in enumerate(members_data, 1):
-                # Verify user in this specific chat
-                verification_result = await self.verify_user_info(
-                    telegram_user_id=member.telegram_user_id,
-                    telegram_chat_id=chat.telegram_chat_id,
-                    auto_update=auto_update
+                    # Add delay to avoid rate limiting
+                    if delay_between_requests > 0:
+                        await asyncio.sleep(delay_between_requests)
+            else:
+                # Original logic: Build query to get active chat members
+                query = (
+                    select(ChatMember, Chat, TelegramUser)
+                    .join(Chat, ChatMember.chat_id == Chat.id)
+                    .join(TelegramUser, ChatMember.telegram_user_id == TelegramUser.telegram_user_id)
+                    .where(ChatMember.status == 'active')
                 )
-                results.append(verification_result)
-                
-                # Update progress tracking
-                self.current_progress = idx
-                self.checked_users = idx
-                if verification_result.is_updated:
-                    self.updated_users += 1
-                if verification_result.has_changes:
-                    self.users_with_changes += 1
-                if verification_result.error:
-                    self.users_with_errors += 1
-                
-                # Calculate estimated time remaining
-                if idx > 0:
-                    elapsed = (datetime.utcnow() - started_at).total_seconds()
-                    avg_time_per_user = elapsed / idx
-                    remaining_users = self.total_users - idx
-                    self.estimated_time_remaining = remaining_users * avg_time_per_user
 
-                # Add delay to avoid rate limiting
-                if delay_between_requests > 0:
-                    await asyncio.sleep(delay_between_requests)
+                # Filter by chat if specified
+                if chat_id:
+                    query = query.where(ChatMember.chat_id == chat_id)
+
+                # Filter by specific user IDs if specified
+                if telegram_user_ids:
+                    query = query.where(ChatMember.telegram_user_id.in_(telegram_user_ids))
+
+                # Execute query
+                result = await self.db.execute(query)
+                members_data = result.all()
+                
+                # Set total users
+                self.total_users = len(members_data)
+
+                # Verify each user
+                for idx, (member, chat, telegram_user) in enumerate(members_data, 1):
+                    # Verify user in this specific chat
+                    verification_result = await self.verify_user_info(
+                        telegram_user_id=member.telegram_user_id,
+                        telegram_chat_id=chat.telegram_chat_id,
+                        auto_update=auto_update
+                    )
+                    results.append(verification_result)
+                    
+                    # Update progress tracking
+                    self.current_progress = idx
+                    self.checked_users = idx
+                    if verification_result.is_updated:
+                        self.updated_users += 1
+                    if verification_result.has_changes:
+                        self.users_with_changes += 1
+                    if verification_result.error:
+                        self.users_with_errors += 1
+                    
+                    # Calculate estimated time remaining
+                    if idx > 0:
+                        elapsed = (datetime.utcnow() - started_at).total_seconds()
+                        avg_time_per_user = elapsed / idx
+                        remaining_users = self.total_users - idx
+                        self.estimated_time_remaining = remaining_users * avg_time_per_user
+
+                    # Add delay to avoid rate limiting
+                    if delay_between_requests > 0:
+                        await asyncio.sleep(delay_between_requests)
 
             # Calculate statistics
             completed_at = datetime.utcnow()

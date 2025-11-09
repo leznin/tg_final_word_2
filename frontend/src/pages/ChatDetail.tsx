@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Radio, Settings, Calendar, User, Unlink, Plus, Trash2, Clock, FileText, ExternalLink, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MessageSquare, MessageCircle, Upload } from 'lucide-react';
 import { useChatDetail, useAvailableChannels, useLinkChannel, useUnlinkChannel, useChatModerators, useRemoveModerator, useChatMembers, useChatSubscriptionStatus, useCreateChatSubscription, useDeactivateChatSubscription, useGetTelegramAdmins, useAddModeratorFromTelegram } from '../hooks/useChats';
+import { useCurrentUser } from '../hooks/useAdminUsers';
 import { Loading } from '../components/ui/Loading';
 import { Select } from '../components/ui/Select';
 import { ChatPostsList } from '../components/chat/ChatPostsList';
@@ -64,6 +65,9 @@ export const ChatDetail: React.FC = () => {
   const removeModeratorMutation = useRemoveModerator();
   const getTelegramAdminsMutation = useGetTelegramAdmins();
   const addModeratorFromTelegramMutation = useAddModeratorFromTelegram();
+  
+  // Get current user
+  const { data: currentUser } = useCurrentUser();
 
   // State for Telegram admins
   const [telegramAdmins, setTelegramAdmins] = useState<any[]>([]);
@@ -125,13 +129,11 @@ export const ChatDetail: React.FC = () => {
 
   const handleAddModeratorFromTelegram = async (admin: any) => {
     try {
-      // Get current user from localStorage
-      const userStr = localStorage.getItem('user');
-      if (!userStr) {
+      // Check if current user is available
+      if (!currentUser) {
         alert('Необходимо войти в систему');
         return;
       }
-      const user = JSON.parse(userStr);
 
       await addModeratorFromTelegramMutation.mutateAsync({
         chatId: chatId!,
@@ -140,7 +142,7 @@ export const ChatDetail: React.FC = () => {
           first_name: admin.first_name,
           last_name: admin.last_name,
           username: admin.username,
-          added_by_user_id: user.id
+          added_by_user_id: currentUser.id
         }
       });
       alert('Модератор успешно добавлен!');

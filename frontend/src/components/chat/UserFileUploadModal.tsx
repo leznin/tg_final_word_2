@@ -44,6 +44,14 @@ export const UserFileUploadModal: React.FC<UserFileUploadModalProps> = ({ chatId
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const handleClose = () => {
+    // If results exist and onSuccess callback is provided, call it before closing
+    if (results.length > 0 && onSuccess) {
+      onSuccess();
+    }
+    onClose();
+  };
+
   // Parse TXT file with user IDs
   const parseUserIdsFile = (content: string): number[] => {
     const lines = content.split('\n')
@@ -177,9 +185,8 @@ export const UserFileUploadModal: React.FC<UserFileUploadModalProps> = ({ chatId
       setResults(result.results);
       setStats(result);
       
-      if (onSuccess) {
-        onSuccess();
-      }
+      // Don't call onSuccess here - let user see results first
+      // onSuccess will be called when modal is closed
     } catch (error: any) {
       console.error('Error verifying users:', error);
       alert('Ошибка проверки: ' + error.message);
@@ -242,7 +249,7 @@ export const UserFileUploadModal: React.FC<UserFileUploadModalProps> = ({ chatId
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 hover:bg-white/20 rounded-lg transition-all"
           >
             <X className="h-5 w-5" />
@@ -532,7 +539,7 @@ export const UserFileUploadModal: React.FC<UserFileUploadModalProps> = ({ chatId
           {!results || results.length === 0 ? (
             <>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-all"
               >
                 Отмена
@@ -556,12 +563,21 @@ export const UserFileUploadModal: React.FC<UserFileUploadModalProps> = ({ chatId
               </button>
             </>
           ) : (
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-            >
-              Закрыть
-            </button>
+            <>
+              <button
+                onClick={downloadResults}
+                className="flex items-center gap-2 px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Скачать CSV
+              </button>
+              <button
+                onClick={handleClose}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+              >
+                Закрыть
+              </button>
+            </>
           )}
         </div>
       </div>

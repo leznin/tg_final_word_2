@@ -34,7 +34,7 @@ class UserChangeNotificationService:
         
         Args:
             telegram_user_id: Telegram user ID
-            field_name: Name of the changed field ('first_name', 'last_name', 'username')
+            field_name: Name of the changed field ('username')
             old_value: Old value of the field
             new_value: New value of the field
         """
@@ -128,7 +128,7 @@ class UserChangeNotificationService:
         
         Args:
             user: TelegramUser object
-            field_name: Name of changed field ('first_name', 'last_name', 'username')
+            field_name: Name of changed field ('username')
             old_value: Old value
             new_value: New value
             
@@ -163,7 +163,7 @@ class UserChangeNotificationService:
         
         user_link = f"tg://user?id={user.telegram_user_id}"
         
-        # Get history from database
+        # Get history from database - get all history records
         query = (
             select(TelegramUserHistory)
             .where(
@@ -171,7 +171,6 @@ class UserChangeNotificationService:
                 TelegramUserHistory.field_name == field_name
             )
             .order_by(desc(TelegramUserHistory.changed_at))
-            .limit(10)  # Last 10 changes
         )
         
         result = await self.db.execute(query)
@@ -196,9 +195,9 @@ class UserChangeNotificationService:
         ]
         
         if history_lines:
-            # Add history as a blockquote
+            # Add history as a blockquote - show all available history
             message_parts.append("")
-            history_block = f"<b>Прежние значения {field_history_name}:</b>\n" + "\n".join(history_lines[:3])
+            history_block = f"<b>Прежние значения {field_history_name}:</b>\n" + "\n".join(history_lines)
             message_parts.append(f"<blockquote>{history_block}</blockquote>")
         
         return "\n".join(message_parts)

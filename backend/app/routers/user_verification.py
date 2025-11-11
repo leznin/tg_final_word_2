@@ -53,7 +53,7 @@ async def verify_single_user(
     """
     Verify a single user's information using Telegram API getChatMember
     
-    This endpoint checks if the user's stored data (first_name, last_name, username)
+    This endpoint checks if the user's stored username
     matches the current data from Telegram API. If auto_update is True, it will
     automatically update the database and record changes in history.
     

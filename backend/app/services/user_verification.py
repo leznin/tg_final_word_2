@@ -110,25 +110,7 @@ class UserVerificationService:
             changes = {}
             has_changes = False
 
-            # Check first_name
-            old_first_name = current_user.first_name if current_user else None
-            new_first_name = telegram_user.first_name
-            if old_first_name != new_first_name:
-                changes["first_name"] = UserChangeDetail(
-                    old_value=old_first_name,
-                    new_value=new_first_name
-                )
-
-            # Check last_name
-            old_last_name = current_user.last_name if current_user else None
-            new_last_name = telegram_user.last_name
-            if old_last_name != new_last_name:
-                changes["last_name"] = UserChangeDetail(
-                    old_value=old_last_name,
-                    new_value=new_last_name
-                )
-
-            # Check username
+            # Check username only
             old_username = current_user.username if current_user else None
             new_username = telegram_user.username
             if old_username != new_username:

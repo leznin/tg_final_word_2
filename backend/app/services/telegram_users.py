@@ -83,9 +83,7 @@ class TelegramUserService:
         db_user = await self.get_telegram_user(telegram_user_data.telegram_user_id)
 
         if db_user:
-            # Record history changes for tracked fields
-            await self._record_history_change(db_user.telegram_user_id, 'first_name', db_user.first_name, telegram_user_data.first_name)
-            await self._record_history_change(db_user.telegram_user_id, 'last_name', db_user.last_name, telegram_user_data.last_name)
+            # Record history changes for username only
             await self._record_history_change(db_user.telegram_user_id, 'username', db_user.username, telegram_user_data.username)
 
             # Update existing user - explicitly set fields
@@ -120,9 +118,7 @@ class TelegramUserService:
             # Fetch the user that was created by the other request
             db_user = await self.get_telegram_user(telegram_user_data.telegram_user_id)
             if db_user:
-                # Record history changes for tracked fields
-                await self._record_history_change(db_user.telegram_user_id, 'first_name', db_user.first_name, telegram_user_data.first_name)
-                await self._record_history_change(db_user.telegram_user_id, 'last_name', db_user.last_name, telegram_user_data.last_name)
+                # Record history changes for username only
                 await self._record_history_change(db_user.telegram_user_id, 'username', db_user.username, telegram_user_data.username)
 
                 # Update the user

@@ -82,7 +82,7 @@ class UserChangeNotificationService:
                 return
 
             # Prepare notification message
-            notification_text = self._format_notification_message(
+            notification_text = await self._format_notification_message(
                 user=user,
                 field_name=field_name,
                 old_value=old_value,
@@ -115,7 +115,7 @@ class UserChangeNotificationService:
             import traceback
             traceback.print_exc()
 
-    def _format_notification_message(
+    async def _format_notification_message(
         self,
         user: TelegramUser,
         field_name: str,
@@ -132,41 +132,101 @@ class UserChangeNotificationService:
             new_value: New value
             
         Returns:
-            Formatted notification message in HTML (English)
+            Formatted notification message in HTML (Russian)
         """
-        # Create user mention
-        user_link = f'<a href="tg://user?id={user.telegram_user_id}">{user.first_name or "User"}</a>'
+        # Special handling for username changes
+        if field_name == 'username':
+            return await self._format_username_change_message(user, old_value, new_value)
         
-        # Translate field names to English
+        # For other fields, use simple format
+        # Create user mention
+        user_link = f'<a href="tg://user?id={user.telegram_user_id}">{user.first_name or "Пользователь"}</a>'
+        
+        # Translate field names to Russian
         field_translations = {
-            'first_name': 'First Name',
-            'last_name': 'Last Name',
-            'username': 'Username'
+            'first_name': 'Имя',
+            'last_name': 'Фамилия',
+            'username': 'Никнейм'
         }
         
-        field_en = field_translations.get(field_name, field_name)
+        field_ru = field_translations.get(field_name, field_name)
         
         # Format old and new values
-        old_display = old_value if old_value else '<i>not set</i>'
-        new_display = new_value if new_value else '<i>not set</i>'
+        old_display = old_value if old_value else '<i>не указано</i>'
+        new_display = new_value if new_value else '<i>не указано</i>'
         
-        # Special formatting for username
-        if field_name == 'username':
-            if old_value:
-                old_display = f'@{old_value}'
-            if new_value:
-                new_display = f'@{new_value}'
-        
-        # Build notification message in English
+        # Build notification message in Russian
         message = (
-            f"🔔 <b>User Profile Changed</b>\n\n"
-            f"User: {user_link}\n"
-            f"<b>{field_en}:</b>\n"
-            f"  Was: {old_display}\n"
-            f"  Now: {new_display}"
+            f"🔔 <b>Изменение профиля участника</b>\n\n"
+            f"Участник: {user_link}\n"
+            f"<b>{field_ru}:</b>\n"
+            f"  Было: {old_display}\n"
+            f"  Стало: {new_display}"
         )
         
         return message
+
+    async def _format_username_change_message(
+        self,
+        user: TelegramUser,
+        old_value: Optional[str],
+        new_value: Optional[str]
+    ) -> str:
+        """
+        Format notification message specifically for username changes
+        Shows username history with dates
+        
+        Args:
+            user: TelegramUser object
+            old_value: Old username (without @)
+            new_value: New username (without @)
+            
+        Returns:
+            Formatted notification message in HTML (Russian)
+        """
+        from sqlalchemy import select, desc
+        from app.models.telegram_user_history import TelegramUserHistory
+        from datetime import datetime
+        
+        # Current username with @
+        current_username = f"@{new_value}" if new_value else "не указан"
+        user_link = f"tg://user?id={user.telegram_user_id}"
+        
+        # Get username history from database
+        query = (
+            select(TelegramUserHistory)
+            .where(
+                TelegramUserHistory.telegram_user_id == user.telegram_user_id,
+                TelegramUserHistory.field_name == 'username'
+            )
+            .order_by(desc(TelegramUserHistory.changed_at))
+            .limit(10)  # Last 10 username changes
+        )
+        
+        result = await self.db.execute(query)
+        history_entries = result.scalars().all()
+        
+        # Build history list (excluding the current change which is first in the list)
+        history_lines = []
+        for entry in history_entries[1:]:  # Skip the most recent (current change)
+            username_display = f"@{entry.new_value}" if entry.new_value else "не указан"
+            # Format date as DD.MM.YYYY
+            date_str = entry.changed_at.strftime("%d.%m.%Y")
+            history_lines.append(f"- {username_display} ({date_str})")
+        
+        # Build the message
+        message_parts = [
+            "♻️ <b>Участник сменил никнейм</b>",
+            f"✔️ {current_username}",
+            f"🔗 {user_link}",
+        ]
+        
+        if history_lines:
+            message_parts.append("")
+            message_parts.append("<b>Прежние никнеймы:</b>")
+            message_parts.extend(history_lines[:3])  # Show only last 3 previous usernames
+        
+        return "\n".join(message_parts)
 
     async def _send_notification_to_chat(self, chat_id: int, text: str) -> None:
         """

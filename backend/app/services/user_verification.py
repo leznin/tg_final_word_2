@@ -118,7 +118,6 @@ class UserVerificationService:
                     old_value=old_first_name,
                     new_value=new_first_name
                 )
-                has_changes = True
 
             # Check last_name
             old_last_name = current_user.last_name if current_user else None
@@ -128,7 +127,6 @@ class UserVerificationService:
                     old_value=old_last_name,
                     new_value=new_last_name
                 )
-                has_changes = True
 
             # Check username
             old_username = current_user.username if current_user else None
@@ -312,11 +310,22 @@ class UserVerificationService:
                 result = await self.db.execute(query)
                 members_data = result.all()
                 
+                # Group by telegram_user_id to ensure unique users
+                # For each user, select one chat (the first one found)
+                unique_users = {}
+                for member, chat, telegram_user in members_data:
+                    user_id = member.telegram_user_id
+                    if user_id not in unique_users:
+                        unique_users[user_id] = (member, chat, telegram_user)
+                
+                # Convert to list for processing
+                unique_members_data = list(unique_users.values())
+                
                 # Set total users
-                self.total_users = len(members_data)
+                self.total_users = len(unique_members_data)
 
                 # Verify each user
-                for idx, (member, chat, telegram_user) in enumerate(members_data, 1):
+                for idx, (member, chat, telegram_user) in enumerate(unique_members_data, 1):
                     # Verify user in this specific chat
                     verification_result = await self.verify_user_info(
                         telegram_user_id=member.telegram_user_id,

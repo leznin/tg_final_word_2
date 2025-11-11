@@ -56,8 +56,8 @@ class TelegramUserService:
             )
             self.db.add(history_entry)
             
-            # Send notifications to groups if bot instance is available
-            if self.bot:
+            # Send notifications to groups only for username changes
+            if field_name == 'username' and self.bot:
                 print(f"[USER_CHANGE] Bot instance available, sending notifications...")
                 try:
                     from app.telegram.services.user_change_notifications import UserChangeNotificationService
@@ -75,7 +75,7 @@ class TelegramUserService:
                     import traceback
                     traceback.print_exc()
             else:
-                print(f"[USER_CHANGE] Bot instance not available, skipping notifications")
+                print(f"[USER_CHANGE] Bot instance not available or not username change, skipping notifications")
 
     async def create_or_update_user_from_telegram(self, telegram_user_data: TelegramUserData) -> TelegramUser:
         """Create or update telegram user from Telegram API data"""

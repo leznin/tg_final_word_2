@@ -196,9 +196,10 @@ class UserChangeNotificationService:
         ]
         
         if history_lines:
+            # Add history as a blockquote
             message_parts.append("")
-            message_parts.append(f"<b>Прежние значения {field_history_name}:</b>")
-            message_parts.extend(history_lines[:3])  # Show only last 3 previous values
+            history_block = f"<b>Прежние значения {field_history_name}:</b>\n" + "\n".join(history_lines[:3])
+            message_parts.append(f"<blockquote>{history_block}</blockquote>")
         
         return "\n".join(message_parts)
 

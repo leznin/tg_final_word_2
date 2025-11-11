@@ -138,14 +138,22 @@ class UserChangeNotificationService:
         from sqlalchemy import select, desc
         from app.models.telegram_user_history import TelegramUserHistory
         
-        # Translate field names to Russian
-        field_translations = {
+        # Translate field names to Russian for title
+        field_title_translations = {
             'first_name': 'имя',
             'last_name': 'фамилию',
             'username': 'никнейм'
         }
         
-        field_ru = field_translations.get(field_name, field_name)
+        # Field names for history section
+        field_history_names = {
+            'first_name': 'firstname',
+            'last_name': 'lastname',
+            'username': 'username'
+        }
+        
+        field_title = field_title_translations.get(field_name, field_name)
+        field_history_name = field_history_names.get(field_name, field_name)
         
         # Format current value with @ for username
         if field_name == 'username':
@@ -182,14 +190,14 @@ class UserChangeNotificationService:
         
         # Build the message
         message_parts = [
-            f"♻️ <b>Участник сменил {field_ru}</b>",
+            f"♻️ <b>Участник сменил {field_title}</b>",
             f"✔️ {current_value}",
             f"🔗 {user_link}",
         ]
         
         if history_lines:
             message_parts.append("")
-            message_parts.append(f"<b>Прежние значения:</b>")
+            message_parts.append(f"<b>Прежние значения {field_history_name}:</b>")
             message_parts.extend(history_lines[:3])  # Show only last 3 previous values
         
         return "\n".join(message_parts)

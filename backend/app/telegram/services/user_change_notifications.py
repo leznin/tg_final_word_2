@@ -197,7 +197,7 @@ class UserChangeNotificationService:
     async def _send_notification_to_chat(self, chat_id: int, text: str) -> None:
         """
         Send notification message to a specific chat
-        Auto-deletes the message after 60 seconds
+        Messages are not deleted automatically
         
         Args:
             chat_id: Telegram chat ID
@@ -211,28 +211,12 @@ class UserChangeNotificationService:
                 parse_mode="HTML"
             )
             
-            # Schedule message deletion after 60 seconds
-            asyncio.create_task(self._delete_message_after_delay(chat_id, message.message_id, 60))
+            # Message will remain in chat (no auto-deletion)
+            print(f"[NOTIFY] Sent notification message {message.message_id} to chat {chat_id}")
             
         except Exception as e:
             # Re-raise to be handled by caller
             raise
-
-    async def _delete_message_after_delay(self, chat_id: int, message_id: int, delay_seconds: int) -> None:
-        """
-        Delete a message after specified delay
-        
-        Args:
-            chat_id: Telegram chat ID
-            message_id: Message ID to delete
-            delay_seconds: Delay in seconds before deletion
-        """
-        try:
-            await asyncio.sleep(delay_seconds)
-            await self.bot.delete_message(chat_id=chat_id, message_id=message_id)
-            print(f"[NOTIFY] Auto-deleted notification message {message_id} from chat {chat_id}")
-        except Exception as e:
-            print(f"[NOTIFY] Failed to auto-delete message {message_id} from chat {chat_id}: {e}")
 
     async def toggle_notifications(self, chat_id: int, enabled: bool) -> bool:
         """

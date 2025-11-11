@@ -29,12 +29,21 @@ async def get_search_boost_price_admin(
     _: dict = Depends(require_admin_auth)
 ):
     """Get current search boost price (admin only)"""
-    from fastapi import HTTPException
+    from datetime import datetime
     service = SearchBoostService(db)
     price = await service.get_price_response()
     
     if not price:
-        raise HTTPException(status_code=404, detail="Search boost price not configured")
+        # Return default values if not configured yet
+        return SearchBoostPriceResponse(
+            id=0,
+            boost_amount=service.DEFAULT_BOOST_AMOUNT,
+            price_stars=50,  # Default price
+            currency="XTR",
+            is_active=False,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
     
     return price
 

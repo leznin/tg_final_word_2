@@ -205,6 +205,7 @@ class UserChangeNotificationService:
     async def _send_notification_to_chat(self, chat_id: int, text: str) -> None:
         """
         Send notification message to a specific chat
+        Messages are sent silently without sound notification
         Messages are not deleted automatically
         
         Args:
@@ -212,15 +213,16 @@ class UserChangeNotificationService:
             text: Message text in HTML format
         """
         try:
-            # Send the notification message
+            # Send the notification message silently (without sound)
             message = await self.bot.send_message(
                 chat_id=chat_id,
                 text=text,
-                parse_mode="HTML"
+                parse_mode="HTML",
+                disable_notification=True
             )
             
             # Message will remain in chat (no auto-deletion)
-            print(f"[NOTIFY] Sent notification message {message.message_id} to chat {chat_id}")
+            print(f"[NOTIFY] Sent silent notification message {message.message_id} to chat {chat_id}")
             
         except Exception as e:
             # Re-raise to be handled by caller
